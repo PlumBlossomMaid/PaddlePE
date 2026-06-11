@@ -1,4 +1,5 @@
-"""MelConformerF0: FCPE backbone - Conformer-based pitch estimator from Mel spectrogram.
+"""MelConformerF0: FCPE backbone - Conformer-based pitch estimator
+from Mel spectrogram.
 
 Port of CFNaiveMelPE with renamed classes.
 """
@@ -6,8 +7,8 @@ Port of CFNaiveMelPE with renamed classes.
 from __future__ import annotations
 
 import paddle
-import paddle.nn as nn
 import paddle.nn.functional as F
+from paddle import nn
 from paddle.nn.utils import weight_norm
 
 
@@ -44,9 +45,24 @@ class Swish(nn.Layer):
 class DepthWiseConv1d(nn.Layer):
     """Depth-wise 1D convolution."""
 
-    def __init__(self, channels: int, kernel_size: int, stride: int = 1, padding: int = 0, dilation: int = 1):
+    def __init__(
+        self,
+        channels: int,
+        kernel_size: int,
+        stride: int = 1,
+        padding: int = 0,
+        dilation: int = 1,
+    ):
         super().__init__()
-        self.conv = nn.Conv1D(channels, channels, kernel_size, stride, padding, dilation, groups=channels)
+        self.conv = nn.Conv1D(
+            channels,
+            channels,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            groups=channels,
+        )
 
     def forward(self, x: paddle.Tensor) -> paddle.Tensor:
         return self.conv(x)
@@ -55,7 +71,13 @@ class DepthWiseConv1d(nn.Layer):
 class ConformerConvModule(nn.Layer):
     """Conformer convolution module."""
 
-    def __init__(self, dim: int, expansion_factor: int = 2, kernel_size: int = 31, dropout: float = 0.0):
+    def __init__(
+        self,
+        dim: int,
+        expansion_factor: int = 2,
+        kernel_size: int = 31,
+        dropout: float = 0.0,
+    ):
         super().__init__()
         inner_dim = dim * expansion_factor
         self.net = nn.Sequential(
@@ -97,7 +119,7 @@ class FastAttention(nn.Layer):
         k = k.reshape([B, T, H, -1]).transpose([0, 2, 1, 3])
         v = v.reshape([B, T, H, -1]).transpose([0, 2, 1, 3])
 
-        scale = (q.shape[-1] ** -0.5)
+        scale = q.shape[-1] ** -0.5
         attn = paddle.matmul(q, k.transpose([0, 1, 3, 2])) * scale
         attn = F.softmax(attn, axis=-1)
         out = paddle.matmul(attn, v)
@@ -174,10 +196,19 @@ class ConformerEncoder(nn.Layer):
         atten_dropout: float = 0.0,
     ):
         super().__init__()
-        self.layers = nn.LayerList([
-            ConformerEncoderLayer(dim, num_heads, use_norm, conv_only, conv_dropout, atten_dropout)
-            for _ in range(num_layers)
-        ])
+        self.layers = nn.LayerList(
+            [
+                ConformerEncoderLayer(
+                    dim,
+                    num_heads,
+                    use_norm,
+                    conv_only,
+                    conv_dropout,
+                    atten_dropout,
+                )
+                for _ in range(num_layers)
+            ]
+        )
 
     def forward(self, x: paddle.Tensor) -> paddle.Tensor:
         for layer in self.layers:
@@ -242,7 +273,9 @@ class MelConformerF0(nn.Layer):
 
         # Output projection
         self.norm = nn.LayerNorm(hidden_dims)
-        self.output_proj = weight_norm(nn.Linear(hidden_dims, out_dims), "weight", 1)
+        self.output_proj = weight_norm(
+            nn.Linear(hidden_dims, out_dims), "weight", 1
+        )
 
         # Cent table for decoding
         cent_min = self._f0_to_cent(paddle.to_tensor([f0_min])).item()
@@ -310,10 +343,15 @@ class MelConformerF0(nn.Layer):
             )
             rtn = rtn * confident_mask
         elif decoder == "local_argmax":
-            confident, max_idx = paddle.max(latent, axis=-1, keepdim=True), paddle.argmax(latent, axis=-1, keepdim=True)
+            confident, max_idx = (
+                paddle.max(latent, axis=-1, keepdim=True),
+                paddle.argmax(latent, axis=-1, keepdim=True),
+            )
             local_idx = paddle.arange(0, 9) + (max_idx - 4)
             local_idx = paddle.clip(local_idx, 0, D - 1)
-            ci_local = paddle.take_along_axis(cent_table, axis=-1, indices=local_idx)
+            ci_local = paddle.take_along_axis(
+                cent_table, axis=-1, indices=local_idx
+            )
             y_local = paddle.take_along_axis(latent, axis=-1, indices=local_idx)
             rtn = paddle.sum(ci_local * y_local, axis=-1, keepdim=True) / (
                 paddle.sum(y_local, axis=-1, keepdim=True) + 1e-10
@@ -329,7 +367,9 @@ class MelConformerF0(nn.Layer):
 
         return self._cent_to_f0(rtn)  # (B, T, 1)
 
-    def train_and_loss(self, mel: paddle.Tensor, gt_f0: paddle.Tensor, loss_scale: float = 10.0) -> paddle.Tensor:
+    def train_and_loss(
+        self, mel: paddle.Tensor, gt_f0: paddle.Tensor, loss_scale: float = 10.0
+    ) -> paddle.Tensor:
         """Training step with loss computation.
 
         Args:
@@ -347,7 +387,9 @@ class MelConformerF0(nn.Layer):
 
         # Ground truth → Gaussian-blurred cent target
         gt_cent = self._f0_to_cent(gt_f0)
-        cent_table = self.cent_table[None, None, :].expand([mel.shape[0], _len, -1])
+        cent_table = self.cent_table[None, None, :].expand(
+            [mel.shape[0], _len, -1]
+        )
         x_gt = paddle.exp(-((cent_table - gt_cent) ** 2) / 1250.0)
         x_gt = x_gt * (gt_cent > 0.1).astype(x_gt.dtype)
 

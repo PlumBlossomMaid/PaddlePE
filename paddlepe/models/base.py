@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Optional
+from typing import ClassVar
 
 import paddle
-import paddle.nn as nn
+from paddle import nn
 
 
 class BasePE(nn.Layer, ABC):
@@ -46,7 +46,7 @@ class BasePE(nn.Layer, ABC):
         wav: paddle.Tensor,
         sr: int,
         **kwargs,
-    ) -> tuple[paddle.Tensor, Optional[paddle.Tensor]]:
+    ) -> tuple[paddle.Tensor, paddle.Tensor | None]:
         """Full inference pipeline: preprocess → forward → decode.
 
         Args:
@@ -66,7 +66,7 @@ class BasePE(nn.Layer, ABC):
         wav: paddle.Tensor,
         sr: int,
         **kwargs,
-    ) -> tuple[paddle.Tensor, Optional[paddle.Tensor]]:
+    ) -> tuple[paddle.Tensor, paddle.Tensor | None]:
         """Alias for infer()."""
         return self.infer(wav, sr, **kwargs)
 

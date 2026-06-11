@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import numpy as np
 import paddle
 import pytest
 
@@ -14,7 +13,9 @@ class TestFCPEBackbone:
         """Forward pass returns correct shape."""
         from paddlepe.models.fcpe.backbone import MelConformerF0
 
-        model = MelConformerF0(mel_bins=128, out_dims=360, hidden_dims=64, n_layers=2, n_heads=4)
+        model = MelConformerF0(
+            mel_bins=128, out_dims=360, hidden_dims=64, n_layers=2, n_heads=4
+        )
         model.eval()
 
         B, T, D = 2, 50, 128
@@ -28,7 +29,9 @@ class TestFCPEBackbone:
         """Infer returns correct shape."""
         from paddlepe.models.fcpe.backbone import MelConformerF0
 
-        model = MelConformerF0(mel_bins=128, out_dims=360, hidden_dims=64, n_layers=2, n_heads=4)
+        model = MelConformerF0(
+            mel_bins=128, out_dims=360, hidden_dims=64, n_layers=2, n_heads=4
+        )
         model.eval()
 
         B, T, D = 1, 50, 128
@@ -41,7 +44,9 @@ class TestFCPEBackbone:
         """Local argmax inference works."""
         from paddlepe.models.fcpe.backbone import MelConformerF0
 
-        model = MelConformerF0(mel_bins=128, out_dims=360, hidden_dims=64, n_layers=2, n_heads=4)
+        model = MelConformerF0(
+            mel_bins=128, out_dims=360, hidden_dims=64, n_layers=2, n_heads=4
+        )
         model.eval()
 
         mel = paddle.randn([1, 20, 128])
@@ -52,7 +57,9 @@ class TestFCPEBackbone:
         """Training with loss works."""
         from paddlepe.models.fcpe.backbone import MelConformerF0
 
-        model = MelConformerF0(mel_bins=128, out_dims=360, hidden_dims=64, n_layers=2, n_heads=4)
+        model = MelConformerF0(
+            mel_bins=128, out_dims=360, hidden_dims=64, n_layers=2, n_heads=4
+        )
         model.train()
 
         B, T = 2, 30
@@ -70,7 +77,9 @@ class TestFCPEBackbone:
         """Forward pass works on GPU."""
         from paddlepe.models.fcpe.backbone import MelConformerF0
 
-        model = MelConformerF0(mel_bins=128, out_dims=360, hidden_dims=64, n_layers=2, n_heads=4)
+        model = MelConformerF0(
+            mel_bins=128, out_dims=360, hidden_dims=64, n_layers=2, n_heads=4
+        )
         model = model.to("gpu:0")
         model.eval()
 
@@ -109,7 +118,9 @@ class TestRMVPEBackbone:
 
         mel = paddle.randn([1, 128, 20])
         out = model(mel)
-        assert out.place.is_gpu_place() or isinstance(out.place, paddle.CPUPlace)
+        assert out.place.is_gpu_place() or isinstance(
+            out.place, paddle.CPUPlace
+        )
 
 
 class TestFCPEPE:

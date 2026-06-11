@@ -20,6 +20,7 @@ import numpy as np
 def _list_models() -> list[str]:
     """List available models without importing all backends."""
     from paddlepe import PE
+
     return PE.list_models()
 
 
@@ -31,7 +32,10 @@ def _do_extract(args):
     try:
         import soundfile as sf
     except ImportError:
-        print("Error: 'soundfile' required for WAV I/O. Install with: pip install soundfile")
+        print(
+            "Error: 'soundfile' required for WAV I/O. "
+            "Install with: pip install soundfile"
+        )
         sys.exit(1)
 
     wav, sr = sf.read(args.input, dtype="float32")
@@ -39,6 +43,7 @@ def _do_extract(args):
         wav = wav.mean(axis=-1)  # mono
 
     import paddle
+
     wav_t = paddle.to_tensor(wav)
 
     # Create model
@@ -59,9 +64,13 @@ def _do_extract(args):
 
     if output_format == "f0":
         from paddlepe.io import write_f0
-        write_f0(output_path, f0_np, conf_np, int(sr), int(sr / 100), f0_min, f0_max)
+
+        write_f0(
+            output_path, f0_np, conf_np, int(sr), int(sr / 100), f0_min, f0_max
+        )
     elif output_format == "csv":
         from paddlepe.io import write_csv
+
         write_csv(output_path, f0_np, conf_np, int(sr), int(sr / 100))
     else:
         print(f"Error: Unknown format: {output_format}")
@@ -72,7 +81,7 @@ def _do_extract(args):
 
 def _do_convert(args):
     """Convert between formats."""
-    from paddlepe.io import read, write
+    from paddlepe.io import read
 
     f0, confidence, sr, hop = read(args.input)
 
@@ -84,9 +93,11 @@ def _do_convert(args):
 
     if output_format == "f0":
         from paddlepe.io import write_f0
+
         write_f0(output_path, f0, confidence, sr, hop, f0_min, f0_max)
     elif output_format == "csv":
         from paddlepe.io import write_csv
+
         write_csv(output_path, f0, confidence, sr, hop)
     else:
         print(f"Error: Unknown format: {output_format}")
@@ -96,6 +107,25 @@ def _do_convert(args):
 
 
 def main():
+    # Check for server mode FIRST, before argparse, to avoid
+    # positional arguments being misinterpreted as subparser commands.
+    if len(sys.argv) > 1 and sys.argv[1] == "server":
+        server_parser = argparse.ArgumentParser(
+            description="Start inference server"
+        )
+        server_parser.add_argument("--model", default="fcpe", help="Model name")
+        server_parser.add_argument(
+            "--port", type=int, default=18560, help="Server port"
+        )
+        server_parser.add_argument(
+            "--ckpt", default=None, help="Checkpoint path"
+        )
+        args = server_parser.parse_args(sys.argv[2:])
+        from paddlepe.server import run_server
+
+        run_server(model=args.model, port=args.port, ckpt=args.ckpt)
+        return
+
     parser = argparse.ArgumentParser(
         description="paddlePE: Unified Pitch Extraction Toolkit",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -105,16 +135,41 @@ def main():
   paddlepe in.csv -o out.f0                    # convert to f0
   paddlepe in.f0 -o out.csv                    # convert to CSV
   paddlepe -l                                  # list models
+  paddlepe server --model fcpe --port 18560    # start server
         """,
     )
 
-    parser.add_argument("input", nargs="?", type=str, help="Input file (.wav, .f0, .csv)")
-    parser.add_argument("-o", "--output", type=str, required=False, help="Output file")
-    parser.add_argument("-f", "--format", type=str, choices=["f0", "csv"], default=None, help="Output format")
-    parser.add_argument("-m", "--model", type=str, default=None, help="Model name (default: fcpe)")
-    parser.add_argument("--ckpt", type=str, default=None, help="Path to checkpoint")
-    parser.add_argument("--interp-uv", action="store_true", help="Interpolate unvoiced frames")
-    parser.add_argument("-l", "--list", action="store_true", help="List available models")
+    # Global options
+    parser.add_argument(
+        "input", nargs="?", type=str, help="Input file (.wav, .f0, .csv)"
+    )
+    parser.add_argument(
+        "-o", "--output", type=str, required=False, help="Output file"
+    )
+    parser.add_argument(
+        "-f",
+        "--format",
+        type=str,
+        choices=["f0", "csv"],
+        default=None,
+        help="Output format",
+    )
+    parser.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        default=None,
+        help="Model name (default: fcpe)",
+    )
+    parser.add_argument(
+        "--ckpt", type=str, default=None, help="Path to checkpoint"
+    )
+    parser.add_argument(
+        "--interp-uv", action="store_true", help="Interpolate unvoiced frames"
+    )
+    parser.add_argument(
+        "-l", "--list", action="store_true", help="List available models"
+    )
 
     args = parser.parse_args()
 

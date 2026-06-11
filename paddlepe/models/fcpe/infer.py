@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import paddle
@@ -50,7 +49,10 @@ class FCPEPE(BasePE):
         self.f0_max = f0_max
 
         # Precompute Hann window for STFT
-        hann = paddle.hann_window(self.win_length, dtype=paddle.float32)
+        n = paddle.arange(self.win_length, dtype=paddle.float32)
+        hann = 0.5 * (
+            1.0 - paddle.cos(2.0 * paddle.pi * n / (self.win_length - 1))
+        )
         self.register_buffer("_hann_window", hann, persistable=True)
 
         self.backbone = MelConformerF0(
@@ -87,7 +89,9 @@ class FCPEPE(BasePE):
             ).squeeze(0)
 
         # Pad
-        wav = paddle.nn.functional.pad(wav, (self.win_length // 2, self.win_length // 2), data_format="NCL")
+        wav = paddle.nn.functional.pad(
+            wav, (self.win_length // 2, self.win_length // 2), data_format="NCL"
+        )
 
         # STFT
         n_fft = self.n_fft
@@ -124,10 +128,14 @@ class FCPEPE(BasePE):
 
             # Left slope
             idx_left = (freq_bins >= left) & (freq_bins < center)
-            filters[i - 1, idx_left] = (freq_bins[idx_left] - left) / (center - left)
+            filters[i - 1, idx_left] = (freq_bins[idx_left] - left) / (
+                center - left
+            )
             # Right slope
             idx_right = (freq_bins >= center) & (freq_bins <= right)
-            filters[i - 1, idx_right] = (right - freq_bins[idx_right]) / (right - center)
+            filters[i - 1, idx_right] = (right - freq_bins[idx_right]) / (
+                right - center
+            )
 
         return paddle.to_tensor(filters)
 
@@ -150,7 +158,7 @@ class FCPEPE(BasePE):
         threshold: float = 0.05,
         interp_uv: bool = False,
         **kwargs,
-    ) -> tuple[paddle.Tensor, Optional[paddle.Tensor]]:
+    ) -> tuple[paddle.Tensor, paddle.Tensor | None]:
         """Infer F0 from audio.
 
         Args:
@@ -183,6 +191,7 @@ class FCPEPE(BasePE):
             uv = f0_np <= 0
             if uv.any():
                 from paddlepe.postproc.filter import interpolate_uv as iuv
+
                 f0_np = iuv(f0_np, uv)
                 f0 = paddle.to_tensor(f0_np)
 
@@ -191,4 +200,8 @@ class FCPEPE(BasePE):
     @classmethod
     def default_ckpt(cls) -> str:
         """Path to default checkpoint."""
-        return str(Path(__file__).parent.parent.parent.parent / "ckpts" / "fcpe.pdparams")
+        return str(
+            Path(__file__).parent.parent.parent.parent
+            / "ckpts"
+            / "fcpe.pdparams"
+        )

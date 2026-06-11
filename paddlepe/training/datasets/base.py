@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import ClassVar
 
-import numpy as np
-import paddle
 from paddle.io import Dataset
 
 
@@ -20,7 +18,7 @@ class PEDataset(Dataset, ABC):
     - hop_length: frame hop in samples
     """
 
-    url: ClassVar[Optional[str]] = None
+    url: ClassVar[str | None] = None
     sample_rate: ClassVar[int] = 16000
     hop_length: ClassVar[int] = 160
 
@@ -34,5 +32,4 @@ class PEDataset(Dataset, ABC):
         ...
 
     @abstractmethod
-    def __len__(self) -> int:
-        ...
+    def __len__(self) -> int: ...

@@ -4,10 +4,6 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from pathlib import Path
-
-import numpy as np
-import pytest
 
 
 def _run_paddlepe(*args: str) -> subprocess.CompletedProcess:
@@ -39,13 +35,18 @@ class TestCLI:
 
     def test_nonexistent_file(self, tmp_dir):
         """Running with nonexistent file shows error."""
-        result = _run_paddlepe("/nonexistent/file.wav", "-o", str(tmp_dir / "out.f0"))
+        result = _run_paddlepe(
+            "/nonexistent/file.wav", "-o", str(tmp_dir / "out.f0")
+        )
         assert result.returncode != 0
-        assert "not found" in result.stderr or "not found" in result.stdout.lower()
+        assert (
+            "not found" in result.stderr or "not found" in result.stdout.lower()
+        )
 
     def test_f0_to_csv_convert(self, tmp_dir, sample_f0):
         """Convert .f0 to .csv."""
         from paddlepe.io import write_f0
+
         f0_path = tmp_dir / "test.f0"
         csv_path = tmp_dir / "test.csv"
         write_f0(f0_path, sample_f0, sample_rate=16000, hop_length=160)
@@ -60,6 +61,7 @@ class TestCLI:
     def test_csv_to_f0_convert(self, tmp_dir, sample_f0):
         """Convert .csv to .f0."""
         from paddlepe.io import write_csv
+
         csv_path = tmp_dir / "test.csv"
         f0_path = tmp_dir / "test.f0"
         write_csv(csv_path, sample_f0, sample_rate=16000, hop_length=160)

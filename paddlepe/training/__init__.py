@@ -5,8 +5,7 @@ Uses ocean for model checkpointing and logging primitives.
 
 from __future__ import annotations
 
-import paddle
-import paddle.nn as nn
+from paddle import nn
 
 
 class PETask(nn.Layer):

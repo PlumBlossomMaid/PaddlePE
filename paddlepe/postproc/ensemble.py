@@ -10,7 +10,8 @@ def ensemble_f0(
     key_shifts: list[float],
     uv_penalty: float = 12.0,
 ) -> np.ndarray:
-    """DP-based ensemble of multiple F0 predictions with key shifts (FCPE style).
+    """DP-based ensemble of multiple F0 predictions
+    with key shifts (FCPE style).
 
     Given multiple F0 predictions from different key shifts (transpositions),
     find the optimal path through all candidates using dynamic programming.
@@ -27,7 +28,9 @@ def ensemble_f0(
     uv_penalty_sq = uv_penalty * uv_penalty
 
     # Convert all F0s to the same note space
-    shift_factors = 2.0 ** (np.array(key_shifts, dtype=np.float64) / 12.0)  # (K,)
+    shift_factors = 2.0 ** (
+        np.array(key_shifts, dtype=np.float64) / 12.0
+    )  # (K,)
     f0s_aligned = f0s / shift_factors[None, :]  # (T, K)
 
     # Convert to note (MIDI-like)

@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [master, "release/*"]
+  pull_request:
+    branches: [master, "release/*"]
+    paths:
+      - "paddlepe/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - ".github/workflows/ci.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  lint:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff==0.15.0 pre-commit
+
+      - name: Run ruff check
+        run: ruff check paddlepe/ tests/ --fix --exit-non-zero-on-fix
+
+      - name: Run ruff format
+        run: ruff format paddlepe/ tests/ --check
+
+  tests-cpu:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install PaddlePaddle (CPU)
+        run: |
+          python -m pip install --upgrade pip
+          pip install paddlepaddle==3.0.0
+          pip install numpy
+
+      - name: Install paddlePE
+        run: |
+          pip install -e .
+
+      - name: Run IO tests
+        run: |
+          python -m pytest tests/test_io.py tests/test_base.py tests/test_postproc.py -v --timeout=120
+
+      - name: Import sanity
+        run: |
+          python -c "from paddlepe import PE; print('Models:', PE.list_models())"
+          python -c "from paddlepe.io import write_f0, read_f0; import numpy as np; write_f0('/tmp/test.f0', np.ones(100)); print('F0 I/O OK')"
+          python -c "from paddlepe.postproc import decode; print('Postproc OK')"
+
+  tests-cuda:
+    runs-on: [self-hosted, linux, nvidia-gpu]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: [lint, tests-cpu]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PaddlePaddle (GPU)
+        run: |
+          pip install paddlepaddle-gpu==3.0.0
+
+      - name: Install paddlePE
+        run: |
+          pip install -e .
+
+      - name: Run full test suite
+        run: |
+          python -m pytest tests/ -v --timeout=120
+
+      - name: Remote server test
+        run: |
+          python -c "
+          from paddlepe.remote import RemotePE
+          import numpy as np
+          pe = RemotePE(model='fcpe', auto_shutdown=True)
+          f0, conf = pe.infer(np.sin(np.linspace(0, 2*np.pi*440, 1600)).astype(np.float32), 16000)
+          print(f'Remote server: {len(f0)} frames')
+          pe.__del__()
+          "

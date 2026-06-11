@@ -1,4 +1,5 @@
-"""Periodicity / confidence estimation from pitch distributions (model-agnostic)."""
+"""Periodicity / confidence estimation from pitch distributions
+(model-agnostic)."""
 
 from __future__ import annotations
 

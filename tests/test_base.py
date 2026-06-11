@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import paddle
 import paddle.base.libpaddle as lp
-import paddle.nn as nn
 import pytest
 
 from paddlepe import PE
 from paddlepe.models.base import BasePE
-from paddlepe.pe import registry
 
 
 class TestBasePE:

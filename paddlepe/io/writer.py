@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import csv
+from io import IOBase
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
@@ -12,35 +12,49 @@ from .formats import encode_header
 
 
 def write_f0(
-    path: str | Path,
+    path: str | Path | IOBase,
     f0: np.ndarray,
-    confidence: Optional[np.ndarray] = None,
+    confidence: np.ndarray | None = None,
     sample_rate: int = 16000,
     hop_length: int = 160,
     f0_min: float = 32.0,
     f0_max: float = 2100.0,
 ):
-    """Write .f0 binary file.
+    """Write .f0 binary file to path or file-like object.
 
     Args:
+        path: file path or BytesIO/IOBase (server uses BytesIO)
         f0: (T,) float32, 0=unvoiced
         confidence: (T,) float32, optional
     """
     f0 = np.asarray(f0, dtype=np.float32)
     has_conf = confidence is not None
-    header = encode_header(sample_rate, hop_length, len(f0), f0_min, f0_max, has_confidence=has_conf)
+    header = encode_header(
+        sample_rate,
+        hop_length,
+        len(f0),
+        f0_min,
+        f0_max,
+        has_confidence=has_conf,
+    )
 
-    with open(path, "wb") as f:
-        f.write(header)
-        f.write(f0.tobytes())
+    if isinstance(path, IOBase):
+        path.write(header)
+        path.write(f0.tobytes())
         if has_conf:
-            f.write(np.asarray(confidence, dtype=np.float32).tobytes())
+            path.write(np.asarray(confidence, dtype=np.float32).tobytes())
+    else:
+        with open(path, "wb") as f:
+            f.write(header)
+            f.write(f0.tobytes())
+            if has_conf:
+                f.write(np.asarray(confidence, dtype=np.float32).tobytes())
 
 
 def write_csv(
     path: str | Path,
     f0: np.ndarray,
-    confidence: Optional[np.ndarray] = None,
+    confidence: np.ndarray | None = None,
     sample_rate: int = 16000,
     hop_length: int = 160,
 ):
@@ -57,7 +71,9 @@ def write_csv(
         if has_conf:
             writer.writerow(["time", "f0_hz", "confidence"])
             for i in range(len(f0)):
-                writer.writerow([i * frame_period, f"{f0[i]:.4f}", f"{confidence[i]:.6f}"])
+                writer.writerow(
+                    [i * frame_period, f"{f0[i]:.4f}", f"{confidence[i]:.6f}"]
+                )
         else:
             writer.writerow(["time", "f0_hz"])
             for i in range(len(f0)):
@@ -67,7 +83,7 @@ def write_csv(
 def write(
     path: str | Path,
     f0: np.ndarray,
-    confidence: Optional[np.ndarray] = None,
+    confidence: np.ndarray | None = None,
     sample_rate: int = 16000,
     hop_length: int = 160,
 ):

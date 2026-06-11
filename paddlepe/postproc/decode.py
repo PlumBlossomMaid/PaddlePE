@@ -5,7 +5,9 @@ from __future__ import annotations
 import numpy as np
 
 
-def argmax(logits: np.ndarray, bins_to_freq: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def argmax(
+    logits: np.ndarray, bins_to_freq: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
     """Take argmax over pitch bins.
 
     Args:
@@ -74,12 +76,18 @@ def viterbi(
     """
     T, num_bins = logits.shape
     # Build triangular transition matrix
-    trans = np.maximum(transition_width - np.abs(np.arange(num_bins)[:, None] - np.arange(num_bins)[None, :]), 0)
+    trans = np.maximum(
+        transition_width
+        - np.abs(np.arange(num_bins)[:, None] - np.arange(num_bins)[None, :]),
+        0,
+    )
     trans = trans / trans.sum(axis=-1, keepdims=True)
 
     # Log probabilities
     log_probs = logits - np.max(logits, axis=-1, keepdims=True)
-    log_probs = log_probs - np.log(np.sum(np.exp(log_probs), axis=-1, keepdims=True) + 1e-10)
+    log_probs = log_probs - np.log(
+        np.sum(np.exp(log_probs), axis=-1, keepdims=True) + 1e-10
+    )
     log_trans = np.log(trans + 1e-10)
 
     # Forward pass

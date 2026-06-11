@@ -5,7 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from paddlepe.postproc import decode, ensemble, threshold, filter as pfilt, periodicity, convert
+from paddlepe.postproc import convert, decode, ensemble, periodicity, threshold
+from paddlepe.postproc import filter as pfilt
 
 
 class TestDecode:
@@ -31,7 +32,9 @@ class TestDecode:
         assert f0.shape == (50,)
 
     def test_local_argmax(self, sample_logits, sample_cent_table):
-        cents, f0 = decode.local_argmax(sample_logits, sample_cent_table, threshold=0.05)
+        cents, f0 = decode.local_argmax(
+            sample_logits, sample_cent_table, threshold=0.05
+        )
         assert cents.shape == (50,)
         assert f0.shape == (50,)
 
@@ -85,8 +88,12 @@ class TestThreshold:
         assert np.all(result >= 0)
 
     def test_silence_mask(self, sample_f0, sample_confidence):
-        loudness = np.random.uniform(-80, -20, len(sample_f0)).astype(np.float32)
-        result = threshold.silence_mask(sample_f0, sample_confidence, loudness, threshold_db=-60)
+        loudness = np.random.uniform(-80, -20, len(sample_f0)).astype(
+            np.float32
+        )
+        result = threshold.silence_mask(
+            sample_f0, sample_confidence, loudness, threshold_db=-60
+        )
         assert result.shape == sample_f0.shape
         assert np.all(result >= 0)
 
@@ -100,7 +107,9 @@ class TestFilter:
 
     def test_nanmedian(self):
         assert pfilt.nanmedian(np.array([1.0, 2.0, 3.0])) == pytest.approx(2.0)
-        assert pfilt.nanmedian(np.array([1.0, np.nan, 3.0])) == pytest.approx(2.0)
+        assert pfilt.nanmedian(np.array([1.0, np.nan, 3.0])) == pytest.approx(
+            2.0
+        )
 
     def test_mean_filter(self, sample_f0):
         result = pfilt.mean_filter(sample_f0, win_length=5)
@@ -149,7 +158,9 @@ class TestConvert:
 
     def test_known_values(self):
         # A4 = 440Hz = MIDI 69
-        assert convert.hz_to_midi(np.array([440.0]))[0] == pytest.approx(69.0, rel=1e-3)
+        assert convert.hz_to_midi(np.array([440.0]))[0] == pytest.approx(
+            69.0, rel=1e-3
+        )
         # A4 = 440Hz = 0 semitones relative to 440
         st = convert.hz_to_semitones(np.array([440.0]))
         assert st[0] == pytest.approx(0.0, abs=1e-3)

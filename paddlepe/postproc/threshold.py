@@ -5,7 +5,9 @@ from __future__ import annotations
 import numpy as np
 
 
-def threshold_at(f0: np.ndarray, confidence: np.ndarray, value: float) -> np.ndarray:
+def threshold_at(
+    f0: np.ndarray, confidence: np.ndarray, value: float
+) -> np.ndarray:
     """Fixed threshold: frames with confidence < value are set to 0.
 
     Args:
@@ -64,7 +66,9 @@ def hysteresis(
         whitened = np.zeros_like(f0)
 
     # Step 3: build parabolic threshold
-    adaptive_thresh = np.maximum(lower_bound, width * whitened * whitened - width * stds * stds)
+    adaptive_thresh = np.maximum(
+        lower_bound, width * whitened * whitened - width * stds * stds
+    )
 
     # Step 4: apply hysteresis to suppress spurious segments
     final_mask = confidence >= adaptive_thresh

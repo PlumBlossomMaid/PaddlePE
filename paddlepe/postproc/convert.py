@@ -5,18 +5,30 @@ from __future__ import annotations
 import numpy as np
 
 
-def bins_to_cents(bins: np.ndarray, cents_per_bin: float = 20.0, base_cents: float = 1997.3794084376191) -> np.ndarray:
+def bins_to_cents(
+    bins: np.ndarray,
+    cents_per_bin: float = 20.0,
+    base_cents: float = 1997.3794084376191,
+) -> np.ndarray:
     """Convert pitch bin index to cents."""
     return bins.astype(np.float64) * cents_per_bin + base_cents
 
 
-def bins_to_frequency(bins: np.ndarray, cents_per_bin: float = 20.0, base_cents: float = 1997.3794084376191) -> np.ndarray:
+def bins_to_frequency(
+    bins: np.ndarray,
+    cents_per_bin: float = 20.0,
+    base_cents: float = 1997.3794084376191,
+) -> np.ndarray:
     """Convert pitch bin index to frequency in Hz."""
     cents = bins_to_cents(bins, cents_per_bin, base_cents)
     return cents_to_frequency(cents)
 
 
-def cents_to_bins(cents: np.ndarray, cents_per_bin: float = 20.0, base_cents: float = 1997.3794084376191) -> np.ndarray:
+def cents_to_bins(
+    cents: np.ndarray,
+    cents_per_bin: float = 20.0,
+    base_cents: float = 1997.3794084376191,
+) -> np.ndarray:
     """Convert cents to pitch bin index."""
     return ((cents - base_cents) / cents_per_bin).astype(np.int64)
 
@@ -32,7 +44,9 @@ def frequency_to_cents(frequency: np.ndarray) -> np.ndarray:
 
 
 def frequency_to_bins(
-    frequency: np.ndarray, cents_per_bin: float = 20.0, base_cents: float = 1997.3794084376191
+    frequency: np.ndarray,
+    cents_per_bin: float = 20.0,
+    base_cents: float = 1997.3794084376191,
 ) -> np.ndarray:
     """Convert frequency in Hz to pitch bin index."""
     cents = frequency_to_cents(frequency)

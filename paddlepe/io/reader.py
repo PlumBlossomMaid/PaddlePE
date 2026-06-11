@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Tuple
 
 import numpy as np
 
 from .formats import (
     HEADER_SIZE,
     decode_header,
-    encode_header,
 )
 
 
-def read_f0(path: str | Path) -> Tuple[np.ndarray, np.ndarray | None, int, int]:
+def read_f0(path: str | Path) -> tuple[np.ndarray, np.ndarray | None, int, int]:
     """Read .f0 binary file.
 
     Returns:
@@ -28,18 +26,24 @@ def read_f0(path: str | Path) -> Tuple[np.ndarray, np.ndarray | None, int, int]:
     dtype = np.dtype("<f4")
 
     # Read f0
-    f0 = np.frombuffer(data, dtype=dtype, count=header.num_frames, offset=offset).copy()
+    f0 = np.frombuffer(
+        data, dtype=dtype, count=header.num_frames, offset=offset
+    ).copy()
     offset += header.num_frames * 4
 
     # Read confidence if present
     confidence: np.ndarray | None = None
     if header.flags & 0x01:
-        confidence = np.frombuffer(data, dtype=dtype, count=header.num_frames, offset=offset).copy()
+        confidence = np.frombuffer(
+            data, dtype=dtype, count=header.num_frames, offset=offset
+        ).copy()
 
     return f0, confidence, header.sample_rate, header.hop_length
 
 
-def read_csv(path: str | Path) -> Tuple[np.ndarray, np.ndarray | None, int, int]:
+def read_csv(
+    path: str | Path,
+) -> tuple[np.ndarray, np.ndarray | None, int, int]:
     """Read CSV file with F0 data.
 
     Expected columns (header row required):
@@ -72,7 +76,9 @@ def read_csv(path: str | Path) -> Tuple[np.ndarray, np.ndarray | None, int, int]
                 confs.append(float(row[2]))
 
     f0 = np.array(f0s, dtype=np.float32)
-    confidence = np.array(confs, dtype=np.float32) if has_conf and confs else None
+    confidence = (
+        np.array(confs, dtype=np.float32) if has_conf and confs else None
+    )
     # Infer sample_rate and hop_length from timestamps
     if len(times) >= 2:
         hop_sec = times[1] - times[0]
@@ -84,15 +90,19 @@ def read_csv(path: str | Path) -> Tuple[np.ndarray, np.ndarray | None, int, int]
     return f0, confidence, sample_rate, hop_length
 
 
-def read_pv(path: str | Path) -> Tuple[np.ndarray, np.ndarray, int, int]:
-    """Read .pv format (RMVPE style: one value per line, 0=unvoiced, else semitones).
+def read_pv(path: str | Path) -> tuple[np.ndarray, np.ndarray, int, int]:
+    """Read .pv format (RMVPE style: one value per line,
+    0=unvoiced, else semitones).
 
     Returns:
         (f0_hz, uv, sample_rate, hop_length)
         uv: (T,) bool, True=unvoiced
     """
     lines = Path(path).read_text().strip().splitlines()
-    values = np.array([float(line.strip()) for line in lines if line.strip()], dtype=np.float32)
+    values = np.array(
+        [float(line.strip()) for line in lines if line.strip()],
+        dtype=np.float32,
+    )
     uv = values == 0
     # Convert semitones to Hz: f = 440 * 2^((st - 69) / 12)
     f0 = np.where(uv, 0.0, 440.0 * (2.0 ** ((values - 69.0) / 12.0)))
@@ -101,14 +111,13 @@ def read_pv(path: str | Path) -> Tuple[np.ndarray, np.ndarray, int, int]:
 
 def read_tsv(
     path: str | Path,
-) -> Tuple[np.ndarray, np.ndarray, int, int]:
+) -> tuple[np.ndarray, np.ndarray, int, int]:
     """Read .tsv format (MIR-ST500 style: onset/offset/midi-note per line).
 
     Returns:
         (f0_hz, uv, sample_rate, hop_length)
         Frame-level with hop_length=160 (10ms @ 16kHz).
     """
-    import csv
 
     data = np.loadtxt(path, delimiter="\t", skiprows=1)
     sr = 16000
@@ -130,7 +139,7 @@ def read_tsv(
     return f0, uv, sr, hop
 
 
-def read(path: str | Path) -> Tuple[np.ndarray, np.ndarray | None, int, int]:
+def read(path: str | Path) -> tuple[np.ndarray, np.ndarray | None, int, int]:
     """Auto-detect format by suffix and read.
 
     Returns:

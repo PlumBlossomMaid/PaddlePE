@@ -5,8 +5,19 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from paddlepe.io import read_f0, write_f0, read_csv, write_csv, read_pv, read_tsv
-from paddlepe.io.formats import MAGIC, HEADER_SIZE, encode_header, decode_header, PitchHeader
+from paddlepe.io import (
+    read_csv,
+    read_f0,
+    read_pv,
+    read_tsv,
+    write_csv,
+    write_f0,
+)
+from paddlepe.io.formats import (
+    HEADER_SIZE,
+    decode_header,
+    encode_header,
+)
 
 
 class TestFormats:
@@ -14,7 +25,9 @@ class TestFormats:
 
     def test_encode_decode_header(self):
         """Header round-trips correctly."""
-        data = encode_header(16000, 160, 100, f0_min=32.0, f0_max=2100.0, has_confidence=True)
+        data = encode_header(
+            16000, 160, 100, f0_min=32.0, f0_max=2100.0, has_confidence=True
+        )
         assert len(data) == HEADER_SIZE
         header = decode_header(data)
         assert header.sample_rate == 16000
@@ -37,7 +50,13 @@ class TestReadWriteF0:
     def test_write_read_roundtrip(self, tmp_dir, sample_f0, sample_confidence):
         """Write and read .f0 file."""
         path = tmp_dir / "test.f0"
-        write_f0(path, sample_f0, sample_confidence, sample_rate=16000, hop_length=160)
+        write_f0(
+            path,
+            sample_f0,
+            sample_confidence,
+            sample_rate=16000,
+            hop_length=160,
+        )
         f0, conf, sr, hop = read_f0(path)
         assert np.allclose(f0, sample_f0)
         assert conf is not None
@@ -48,7 +67,9 @@ class TestReadWriteF0:
     def test_write_read_without_confidence(self, tmp_dir, sample_f0):
         """Write and read .f0 file without confidence."""
         path = tmp_dir / "test_no_conf.f0"
-        write_f0(path, sample_f0, confidence=None, sample_rate=16000, hop_length=160)
+        write_f0(
+            path, sample_f0, confidence=None, sample_rate=16000, hop_length=160
+        )
         f0, conf, sr, hop = read_f0(path)
         assert np.allclose(f0, sample_f0)
         assert conf is None
@@ -65,7 +86,13 @@ class TestReadWriteCSV:
     def test_write_read_roundtrip(self, tmp_dir, sample_f0, sample_confidence):
         """Write and read CSV file."""
         path = tmp_dir / "test.csv"
-        write_csv(path, sample_f0, sample_confidence, sample_rate=16000, hop_length=160)
+        write_csv(
+            path,
+            sample_f0,
+            sample_confidence,
+            sample_rate=16000,
+            hop_length=160,
+        )
         f0, conf, sr, hop = read_csv(path)
         assert np.allclose(f0, sample_f0)
         assert conf is not None
@@ -87,7 +114,13 @@ class TestReadPV:
         """Read .pv file."""
         pv_path = tmp_dir / "test.pv"
         # Write .pv format: semitones per line, 0 for unvoiced
-        values = [69.0, 70.0, 0.0, 71.0, 72.0]  # A4=440Hz, B4≈493.88, silence, C5≈523.25, D5≈587.33
+        values = [
+            69.0,
+            70.0,
+            0.0,
+            71.0,
+            72.0,
+        ]  # A4=440Hz, B4≈493.88, silence, C5≈523.25, D5≈587.33
         pv_path.write_text("\n".join(str(v) for v in values))
 
         f0, uv, sr, hop = read_pv(pv_path)

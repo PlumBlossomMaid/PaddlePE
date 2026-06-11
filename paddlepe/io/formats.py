@@ -44,7 +44,9 @@ class PitchHeader(NamedTuple):
 
 HEADER_FORMAT = "<8sBIIIIffB3x"
 HEADER_FORMAT_SIZE = struct.calcsize(HEADER_FORMAT)
-assert HEADER_FORMAT_SIZE == HEADER_SIZE, f"Header size mismatch: {HEADER_FORMAT_SIZE} != {HEADER_SIZE}"
+assert HEADER_FORMAT_SIZE == HEADER_SIZE, (
+    f"Header size mismatch: {HEADER_FORMAT_SIZE} != {HEADER_SIZE}"
+)
 
 
 def encode_header(
