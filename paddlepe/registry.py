@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import paddle
+
+
+def _default_ckpt_path(name: str) -> str | None:
+    """Resolve default checkpoint path for a model."""
+    ckpt = Path(__file__).parent.parent / "ckpts" / f"{name}.pdparams"
+    return str(ckpt) if ckpt.exists() else None
 
 
 class _Registry:
@@ -27,8 +35,9 @@ class _Registry:
                 f"Unknown model: {name}. Available: {list(self._models.keys())}"
             )
         model = self._models[name](**kwargs)
-        if ckpt is not None:
-            state = paddle.load(ckpt)
+        resolved = ckpt or _default_ckpt_path(name)
+        if resolved:
+            state = paddle.load(resolved)
             model.set_state_dict(state)
         return model
 

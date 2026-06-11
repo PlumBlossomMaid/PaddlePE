@@ -60,7 +60,7 @@ jobs:
       - name: Install PaddlePaddle (CPU)
         run: |
           python -m pip install --upgrade pip
-          pip install paddlepaddle==3.0.0
+          pip install paddlepaddle==3.3.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
           pip install numpy
 
       - name: Install paddlePE
@@ -92,7 +92,7 @@ jobs:
 
       - name: Install PaddlePaddle (GPU)
         run: |
-          pip install paddlepaddle-gpu==3.0.0
+          pip install paddlepaddle==3.3.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
 
       - name: Install paddlePE
         run: |

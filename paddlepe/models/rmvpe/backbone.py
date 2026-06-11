@@ -175,9 +175,8 @@ class BiGRU(nn.Layer):
         )
 
     def forward(self, x: paddle.Tensor) -> paddle.Tensor:
-        x = x.unsqueeze(0) if x.ndim == 2 else x
         out, _ = self.gru(x)
-        return out.squeeze(0) if out.shape[0] == 1 else out
+        return out
 
 
 N_MELS = 128
