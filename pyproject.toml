@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paddlepe"
+version = "0.1.0"
+description = "Unified Pitch Extraction toolkit for PaddlePaddle"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "paddlepaddle-gpu>=3.0.0",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-timeout>=2.0",
+    "ruff>=0.15.0",
+    "pre-commit>=3.0",
+]
+all = [
+    "parselmouth>=0.4",
+    "pyworld>=0.3",
+]
+
+[project.scripts]
+paddlepe = "paddlepe.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["paddlepe*"]
+
+[tool.ruff]
+exclude = [".git", "__pycache__", "ckpts"]
+line-length = 80
+target-version = "py310"
+
+[tool.ruff.format]
+quote-style = "preserve"
+docstring-code-format = true
+docstring-code-line-length = 80
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "C4", "T100", "UP", "PYI",
+    "NPY001", "NPY003", "NPY201",
+    "B002", "B003", "B005", "B009", "B010", "B011", "B012",
+    "B013", "B014", "B015", "B017", "B018", "B019", "B020",
+    "B021", "B025", "B029", "B032",
+    "PLE", "PLC3002", "PLR0206", "PLR0402", "PLR1711",
+    "PLR1722", "PLW3301",
+    "SIM101", "SIM117", "PGH004", "TC",
+    "RUF005", "RUF008", "RUF009", "RUF010", "RUF013",
+    "RUF015", "RUF016", "RUF017", "RUF018", "RUF019",
+    "RUF020", "RUF024", "RUF026", "RUF100",
+    "RSE", "Q003", "Q004", "FURB", "FA",
+]
+unfixable = ["FURB", "SIM117"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+timeout = 120
+addopts = "-v --tb=short"
