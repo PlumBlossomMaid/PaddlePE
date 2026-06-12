@@ -120,10 +120,20 @@ def main():
         server_parser.add_argument(
             "--ckpt", default=None, help="Checkpoint path"
         )
+        server_parser.add_argument(
+            "--no-preload",
+            action="store_true",
+            help="Start without loading model (lazy load on first request)",
+        )
         args = server_parser.parse_args(sys.argv[2:])
         from paddlepe.server import run_server
 
-        run_server(model=args.model, port=args.port, ckpt=args.ckpt)
+        run_server(
+            model=args.model,
+            port=args.port,
+            ckpt=args.ckpt,
+            no_preload=args.no_preload,
+        )
         return
 
     parser = argparse.ArgumentParser(
