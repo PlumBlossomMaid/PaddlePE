@@ -111,8 +111,8 @@ class LocalAttention(nn.Layer):
         self.rel_pos = None
         self.use_xpos = use_xpos
 
-        if (
-            use_rotary_pos_emb and (exists(rel_pos_emb_config) or exists(dim))
+        if use_rotary_pos_emb and (
+            exists(rel_pos_emb_config) or exists(dim)
         ):  # backwards compatible with old `rel_pos_emb_config`
             # deprecated argument
             if exists(rel_pos_emb_config):
