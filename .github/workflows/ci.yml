@@ -66,6 +66,7 @@ jobs:
       - name: Install paddlePE
         run: |
           pip install -e .
+          pip install resampy 2>/dev/null || true
 
       - name: Run IO tests
         run: |
@@ -74,7 +75,14 @@ jobs:
       - name: Import sanity
         run: |
           python -c "from paddlepe import PE; print('Models:', PE.list_models())"
-          python -c "from paddlepe.io import write_f0, read_f0; import numpy as np; write_f0('/tmp/test.f0', np.ones(100)); print('F0 I/O OK')"
+          python -c "
+import tempfile, numpy as np
+from paddlepe.io import write_f0, read_f0
+with tempfile.NamedTemporaryFile(suffix='.f0', delete=False) as f:
+    write_f0(f.name, np.ones(100, dtype=np.float32))
+    f0, conf, sr, hop = read_f0(f.name)
+    print(f'F0 I/O OK: {len(f0)} frames')
+"
           python -c "from paddlepe.postproc import decode; print('Postproc OK')"
 
   tests-cuda:
@@ -98,6 +106,7 @@ jobs:
       - name: Install paddlePE
         run: |
           pip install -e .
+          pip install resampy 2>/dev/null || true
 
       - name: Run full test suite
         run: |
