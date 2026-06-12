@@ -113,7 +113,8 @@ class LocalAttention(nn.Layer):
 
         if (
             use_rotary_pos_emb and (exists(rel_pos_emb_config) or exists(dim))
-        ):  # backwards compatible with old `rel_pos_emb_config` deprecated argument
+        ):  # backwards compatible with old `rel_pos_emb_config`
+            # deprecated argument
             if exists(rel_pos_emb_config):
                 dim = rel_pos_emb_config[0]
 
@@ -160,7 +161,8 @@ class LocalAttention(nn.Layer):
             self.shared_qk,
         )
 
-        # https://github.com/arogozhnikov/einops/blob/master/docs/4-pack-and-unpack.ipynb
+        # https://github.com/arogozhnikov/einops/blob/master/
+        # docs/4-pack-and-unpack.ipynb
         (q, packed_shape), (k, _), (v, _) = (
             pack([t], '* n d') for t in (q, k, v)
         )
@@ -178,7 +180,8 @@ class LocalAttention(nn.Layer):
         scale = default(self.scale, dim_head**-0.5)
 
         assert (n % window_size) == 0, (
-            f'sequence length {n} must be divisible by window size {window_size} for local attention'
+            f'sequence length {n} must be divisible by window size '
+            f'{window_size} for local attention'
         )
 
         windows = n // window_size

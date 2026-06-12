@@ -75,7 +75,8 @@ class MelConformerF0(nn.Layer):
         Returns:
             out: (B, T, out_dims) sigmoid
         """
-        # Input stack: (B, T, C) → transpose → (B, C, T) → conv1d → transpose → (B, T, C)
+        # Input stack: (B, T, C) → transpose → (B, C, T)
+        # → conv1d → transpose → (B, T, C)
         x = self.input_stack[0](x.transpose([0, 2, 1]))  # Conv1D: (B, C, T)
         x = self.input_stack[1](x.unsqueeze(-2)).squeeze(
             -2

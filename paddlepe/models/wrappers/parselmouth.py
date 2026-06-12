@@ -76,7 +76,8 @@ class ParselmouthPE(BasePE):
         Args:
             wav: audio waveform, (S,) or (1, S) float32
             sr: sample rate
-            **kwargs: override init-time params (time_step, pitch_floor, pitch_ceiling)
+            **kwargs: override init-time params
+                (time_step, pitch_floor, pitch_ceiling)
 
         Returns:
             (f0_hz, None)

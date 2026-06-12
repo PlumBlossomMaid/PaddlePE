@@ -30,7 +30,8 @@ class WorldPE(BasePE):
         """Initialize WorldPE.
 
         Args:
-            hop_length: hop length in samples, used to derive frame period (default: 160)
+            hop_length: hop length in samples, used to derive
+                frame period (default: 160)
             sample_rate: target sample rate in Hz (default: 16000)
         """
         super().__init__()
@@ -74,7 +75,8 @@ class WorldPE(BasePE):
         Returns:
             (f0_hz, confidence)
             f0_hz: (T,) float32, 0 = unvoiced
-            confidence: (T,) float32, inverted unvoiced flag (1.0 = voiced, 0.0 = unvoiced)
+            confidence: (T,) float32, inverted unvoiced flag
+                (1.0 = voiced, 0.0 = unvoiced)
         """
         import pyworld
 

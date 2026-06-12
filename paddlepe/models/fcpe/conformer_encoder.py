@@ -17,8 +17,10 @@ class ConformerEncoder(nn.Layer):
         dim_model (int): Dimension of model
         num_layers (int): Number of layers
         num_heads (int): Number of heads
-        use_norm (bool): Whether to use norm for FastAttention, only True can use bf16/fp16, default False
-        conv_only (bool): Whether to use only conv module without attention, default False
+        use_norm (bool): Whether to use norm for FastAttention,
+            only True can use bf16/fp16, default False
+        conv_only (bool): Whether to use only conv module
+            without attention, default False
         conv_dropout (float): Dropout rate of conv module, default 0.
         atten_dropout (float): Dropout rate of attention module, default 0.
     """
@@ -76,8 +78,10 @@ class ConformerEncoderLayer(nn.Layer):
     Args:
         dim_model (int): Dimension of model
         num_heads (int): Number of heads
-        use_norm (bool): Whether to use norm for FastAttention, only True can use bf16/fp16, default False
-        conv_only (bool): Whether to use only conv module without attention, default False
+        use_norm (bool): Whether to use norm for FastAttention,
+            only True can use bf16/fp16, default False
+        conv_only (bool): Whether to use only conv module
+            without attention, default False
         conv_dropout (float): Dropout rate of conv module, default 0.1
         atten_dropout (float): Dropout rate of attention module, default 0.1
     """
@@ -298,7 +302,9 @@ class SelfAttention(nn.Layer):
         q, k, v = self.to_q(x), self.to_k(context), self.to_v(context)
 
         # q, k, v = map(lambda t: torch.from_numpy(t.numpy()), (q, k, v))
-        # q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), (q, k, v))
+        # q, k, v = map(
+        #     lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), (q, k, v)
+        # )
         # exit("248")
         q, k, v = (rearrange(t, 'b n (h d) -> b h n d', h=h) for t in (q, k, v))
         (q, lq), (k, lk), (v, lv) = ((t[:, :gh], t[:, gh:]) for t in (q, k, v))
@@ -367,7 +373,8 @@ class FastAttention(nn.Layer):
         self.kernel_fn = kernel_fn
 
         # if this is turned on, no projection will be used
-        # queries and keys will be softmax-ed as in the original efficient attention paper
+        # queries and keys will be softmax-ed as in the original
+        # efficient attention paper
         self.no_projection = no_projection
 
         self.causal = causal
@@ -379,7 +386,8 @@ class FastAttention(nn.Layer):
                 self.causal_linear_fn = partial(causal_linear_attention)
             except ImportError:
                 print(
-                    'unable to import cuda code for auto-regressive Performer. will default to the memory inefficient non-cuda version')
+                    'unable to import cuda code for auto-regressive Performer. '
+                    'will default to the memory inefficient non-cuda version')
                 self.causal_linear_fn = causal_linear_attention_noncuda
         '''
         if self.causal or self.generalized_attention:
@@ -406,8 +414,10 @@ class FastAttention(nn.Layer):
 
         elif self.generalized_attention:
             '''
-            create_kernel = partial(generalized_kernel, kernel_fn=self.kernel_fn,
-                                    projection_matrix=self.projection_matrix, device=device)
+            create_kernel = partial(
+                generalized_kernel, kernel_fn=self.kernel_fn,
+                projection_matrix=self.projection_matrix, device=device
+            )
             q, k = map(create_kernel, (q, k))
             '''
             raise NotImplementedError(
@@ -517,7 +527,9 @@ def gaussian_orthogonal_random_matrix(
         )
         block_list.append(q)
     # block_list[n] is a orthogonal matrix ... (model_dim * model_dim)
-    # print (block_list[0].size(), torch.einsum('...nd,...nd->...n', block_list[0], torch.roll(block_list[0],1,1)))
+    # print (block_list[0].size(),
+    #        torch.einsum('...nd,...nd->...n',
+    #                     block_list[0], torch.roll(block_list[0],1,1)))
     # print (nb_rows, nb_full_blocks, nb_columns)
     remaining_rows = nb_rows - nb_full_blocks * nb_columns
     # print (remaining_rows)

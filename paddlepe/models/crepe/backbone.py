@@ -10,9 +10,11 @@ Layer naming convention (used for weight compatibility):
   convs.0.weight / convs.0.bias       -- Conv2D layers
   bns.0.weight / bns.0.bias           -- BatchNorm gamma / beta
   bns.0._mean / bns.0._variance       -- BatchNorm running stats
-  fc2.weight / fc2.bias                -- Output Linear (called "classifier" in torch)
+  fc2.weight / fc2.bias                -- Output Linear
+                                    (called "classifier" in torch)
 
-NOTE: Unlike the torch original which uses named attributes (conv1, conv1_BN, ...),
+NOTE: Unlike the torch original which uses named attributes
+      (conv1, conv1_BN, ...),
       this port uses ModuleList for clean iteration while preserving the same
       computational graph.
 """
@@ -168,7 +170,8 @@ class CrepeBackbone(nn.Layer):
 
         # Flatten: (B, C, H, 1) -> (B, H*C)
         # Must match torch's permute(0, 2, 1, 3).reshape(-1, in_features)
-        # so elements are ordered (batch, height, channel), not (batch, channel, height)
+        # so elements are ordered (batch, height, channel),
+        # not (batch, channel, height)
         x = x.transpose([0, 2, 1, 3])  # (B, H, C, 1)
         x = x.reshape((x.shape[0], -1))  # (B, H*C)
 
