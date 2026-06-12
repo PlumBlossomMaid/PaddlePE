@@ -28,7 +28,7 @@ class SinusoidalEmbeddings(nn.Layer):
         self.register_buffer('scale', scale, persistent=False)
 
     def forward(self, x):
-        seq_len, device = x.shape[-2], x.device
+        seq_len, _device = x.shape[-2], x.device
 
         t = paddle.arange(seq_len).astype(self.inv_freq.dtype)
         freqs = paddle.einsum('i , j -> i j', t, self.inv_freq)

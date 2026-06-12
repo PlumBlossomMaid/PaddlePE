@@ -141,7 +141,7 @@ class LocalAttention(nn.Layer):
         )
 
         (
-            shape,
+            _shape,
             autopad,
             pad_value,
             window_size,
@@ -161,20 +161,15 @@ class LocalAttention(nn.Layer):
         )
 
         # https://github.com/arogozhnikov/einops/blob/master/docs/4-pack-and-unpack.ipynb
-        (q, packed_shape), (k, _), (v, _) = map(
-            lambda t: pack([t], '* n d'), (q, k, v)
-        )
+        (q, packed_shape), (k, _), (v, _) = (pack([t], '* n d') for t in (q, k, v))
 
         # auto padding
 
         if autopad:
             orig_seq_len = q.shape[1]
-            (needed_pad, q), (_, k), (_, v) = map(
-                lambda t: pad_to_multiple(t, self.window_size, dim=-2),
-                (q, k, v),
-            )
+            (needed_pad, q), (_, k), (_, v) = (pad_to_multiple(t, self.window_size, dim=-2) for t in (q, k, v))
 
-        b, n, dim_head, device, dtype = *q.shape, q.device, q.dtype
+        b, n, dim_head, _device, _dtype = *q.shape, q.device, q.dtype
 
         scale = default(self.scale, dim_head**-0.5)
 
@@ -192,15 +187,13 @@ class LocalAttention(nn.Layer):
 
         # bucketing
 
-        bq, bk, bv = map(
-            lambda t: rearrange(t, 'b (w n) d -> b w n d', w=windows), (q, k, v)
-        )
+        bq, bk, bv = (rearrange(t, 'b (w n) d -> b w n d', w=windows) for t in (q, k, v))
 
         bq = bq * scale
 
-        look_around_kwargs = dict(
-            backward=look_backward, forward=look_forward, pad_value=pad_value
-        )
+        look_around_kwargs = {
+            'backward': look_backward, 'forward': look_forward, 'pad_value': pad_value
+        }
 
         bk = look_around(bk, **look_around_kwargs)
         bv = look_around(bv, **look_around_kwargs)

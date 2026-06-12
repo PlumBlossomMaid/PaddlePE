@@ -111,10 +111,7 @@ class LocalMHA(nn.Layer):
             x = self.norm(x)
 
         q, k, v = self.to_qkv(x).chunk(3, dim=-1)
-        q, k, v = map(
-            lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.heads),
-            (q, k, v),
-        )
+        q, k, v = (rearrange(t, 'b n (h d) -> b h n d', h=self.heads) for t in (q, k, v))
 
         if self.qk_rmsnorm:
             q, k = map(l2norm, (q, k))
@@ -172,7 +169,6 @@ class DynamicPositionBias(nn.Layer):
         return next(self.parameters()).device
 
     def forward(self, i, j):
-        device = self.device
         assert j >= i
 
         rel_dist = paddle.arange(j, dtype=paddle.float32)
@@ -259,7 +255,7 @@ class LocalTransformer(nn.Layer):
     def generate(
         self, prime, seq_len, temperature=1.0, filter_thres=0.9, **kwargs
     ):
-        n, device = prime.shape[1], prime.device
+        n, _device = prime.shape[1], prime.device
 
         out = prime
 

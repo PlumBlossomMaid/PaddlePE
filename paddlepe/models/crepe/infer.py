@@ -137,7 +137,7 @@ def _preprocess(
         hop_len = int(hop_len * SAMPLE_RATE / sample_rate)
 
     # Pad for framing
-    total_frames = 1 + int(audio.shape[0] // hop_len)
+    1 + int(audio.shape[0] // hop_len)
     audio = nn.functional.pad(
         audio.unsqueeze(0),
         (WINDOW_SIZE // 2, WINDOW_SIZE // 2),

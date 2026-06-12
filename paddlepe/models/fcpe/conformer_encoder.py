@@ -188,7 +188,7 @@ class Transpose(nn.Layer):
 
     def forward(self, x):
         if x.dim() == 3:
-            return x.transpose([0] + self.dims)
+            return x.transpose([0, *self.dims])
         elif x.dim() == 2:
             return x.transpose(self.dims)
         else:
@@ -286,7 +286,7 @@ class SelfAttention(nn.Layer):
         inference=False,
         **kwargs,
     ):
-        b, n, _, h, gh = *x.shape, self.heads, self.global_heads
+        _b, _n, _, h, gh = *x.shape, self.heads, self.global_heads
 
         cross_attend = exists(context)
 
@@ -300,12 +300,8 @@ class SelfAttention(nn.Layer):
         # q, k, v = map(lambda t: torch.from_numpy(t.numpy()), (q, k, v))
         # q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), (q, k, v))
         # exit("248")
-        q, k, v = map(
-            lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), (q, k, v)
-        )
-        (q, lq), (k, lk), (v, lv) = map(
-            lambda t: (t[:, :gh], t[:, gh:]), (q, k, v)
-        )
+        q, k, v = (rearrange(t, 'b n (h d) -> b h n d', h=h) for t in (q, k, v))
+        (q, lq), (k, lk), (v, lv) = ((t[:, :gh], t[:, gh:]) for t in (q, k, v))
 
         attn_outs = []
         # print (name)
@@ -547,7 +543,7 @@ def gaussian_orthogonal_random_matrix(
 def orthogonal_matrix_chunk(cols, qr_uniform_q=False, device=None):
     unstructured_block = paddle.randn((cols, cols))
     q, r = paddle.linalg.qr(unstructured_block.cpu(), mode='reduced')
-    q, r = map(lambda t: paddle.to_tensor(t, place=device), (q, r))
+    q, r = (paddle.to_tensor(t, place=device) for t in (q, r))
 
     # proposed by @Parskatt
     # to make sure Q is uniform https://arxiv.org/pdf/math-ph/0609050.pdf
