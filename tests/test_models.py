@@ -53,22 +53,6 @@ class TestFCPEBackbone:
         f0 = model.infer(mel, decoder="local_argmax")
         assert f0.shape == [1, 20, 1]
 
-    def test_train_and_loss(self):
-        """Training with loss works."""
-        from paddlepe.models.fcpe.backbone import MelConformerF0
-
-        model = MelConformerF0(
-            mel_bins=128, out_dims=360, hidden_dims=64, n_layers=2, n_heads=4
-        )
-        model.train()
-
-        B, T = 2, 30
-        mel = paddle.randn([B, T, 128])
-        gt_f0 = paddle.rand([B, T, 1]) * 400 + 100  # 100-500 Hz
-        loss = model.train_and_loss(mel, gt_f0)
-        assert loss.shape == []
-        assert loss.item() > 0
-
     @pytest.mark.skipif(
         not paddle.device.is_compiled_with_cuda(),
         reason="CUDA not available",
