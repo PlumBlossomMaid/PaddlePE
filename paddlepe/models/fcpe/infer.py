@@ -173,6 +173,7 @@ class FCPEPE(BasePE):
         Returns:
             (f0_hz, confidence)
         """
+        wav = self._to_tensor(wav)
         if wav.ndim == 1:
             wav = wav.unsqueeze(0)
         if wav.dim() > 2:

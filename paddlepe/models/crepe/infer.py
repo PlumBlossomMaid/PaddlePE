@@ -225,6 +225,7 @@ class CrepePE(BasePE):
             f0_hz: (T,) float32, 0 = unvoiced
             confidence: (T,) float32
         """
+        wav = self._to_tensor(wav)
         wav = wav.squeeze()
         if wav.ndim == 0:
             wav = wav.unsqueeze(0)

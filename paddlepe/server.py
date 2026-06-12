@@ -4,11 +4,12 @@ Serves pitch extraction models via HTTP, running Paddle in an isolated process.
 
 Usage:
     python -m paddlepe.server --model fcpe --port 18560
-    # Or via CLI: paddlepe server --model fcpe --port 18560
+    paddlepe server --model fcpe --port 18560
+    python -m paddlepe.server --no-preload --port 18560   # headless, for /models only
 
 API endpoints:
     GET /health          → {"status": "ok"}
-    GET /models          → {"models": ["fcpe", "rmvpe"]}
+    GET /models          → {"models": ["fcpe", "rmvpe", ...]}
     POST /load           → load model: {"model": "fcpe"}
     POST /infer          → infer pitch: binary WAV → binary .f0 response
 """
@@ -25,6 +26,16 @@ import numpy as np
 # Paddle is imported lazily — only inside request handlers
 _MODEL: object | None = None
 _MODEL_NAME: str = ""
+_SERVER: HTTPServer | None = None
+
+
+def _shutdown_after_delay():
+    """Shutdown server after a short delay (response must be sent first)."""
+    import time as _t
+
+    _t.sleep(0.1)
+    if _SERVER:
+        _SERVER.shutdown()
 
 
 class _PitchHandler(BaseHTTPRequestHandler):
@@ -66,8 +77,16 @@ class _PitchHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
-            self._send_json(200, {"status": "ok", "model": _MODEL_NAME})
+            self._send_json(
+                200,
+                {
+                    "status": "ok",
+                    "model": _MODEL_NAME or None,
+                    "loaded": _MODEL is not None,
+                },
+            )
         elif self.path == "/models":
+            # Lazy import: triggers PaddlePaddle only when queried
             from paddlepe import PE
 
             self._send_json(200, {"models": PE.list_models()})
@@ -75,7 +94,14 @@ class _PitchHandler(BaseHTTPRequestHandler):
             self._send_json(404, {"error": "not found"})
 
     def do_POST(self):
-        global _MODEL, _MODEL_NAME
+        global _MODEL, _MODEL_NAME, _SERVER
+
+        if self.path == "/shutdown":
+            self._send_json(200, {"status": "shutting down"})
+            import threading as _t
+
+            _t.Thread(target=_shutdown_after_delay, daemon=True).start()
+            return
 
         if self.path == "/load":
             length = int(self.headers.get("Content-Length", 0))
@@ -162,16 +188,34 @@ def _load_model(name: str, ckpt: str | None = None):
     _MODEL.eval()
 
 
-def run_server(model: str = "fcpe", port: int = 18560, ckpt: str | None = None):
+def run_server(
+    model: str | None = "fcpe",
+    port: int = 18560,
+    ckpt: str | None = None,
+    no_preload: bool = False,
+):
     """Start the inference server.
 
     This is meant to run in a subprocess. Paddle is imported lazily
     so that the parent process (e.g. PyTorch) never conflicts.
-    """
-    _load_model(model, ckpt)
 
-    server = HTTPServer(("127.0.0.1", port), _PitchHandler)
-    server.serve_forever()
+    Args:
+        model: Model name to preload, or None if no_preload=True.
+        port: TCP port to listen on.
+        ckpt: Optional checkpoint path.
+        no_preload: If True, start server without loading any model.
+            Client must call /load before /infer. Useful for listing
+            models without loading an actual model.
+    """
+    global _SERVER
+
+    if no_preload:
+        model = None
+    if model is not None:
+        _load_model(model, ckpt)
+
+    _SERVER = HTTPServer(("127.0.0.1", port), _PitchHandler)
+    _SERVER.serve_forever()
 
 
 def main():
@@ -179,8 +223,15 @@ def main():
     parser.add_argument("--model", default="fcpe", help="Model name")
     parser.add_argument("--port", type=int, default=18560, help="Server port")
     parser.add_argument("--ckpt", default=None, help="Checkpoint path")
+    parser.add_argument(
+        "--no-preload",
+        action="store_true",
+        help="Start without preloading a model. Use /load later.",
+    )
     args = parser.parse_args()
-    run_server(args.model, args.port, args.ckpt)
+    run_server(
+        args.model, args.port, args.ckpt, no_preload=args.no_preload
+    )
 
 
 if __name__ == "__main__":

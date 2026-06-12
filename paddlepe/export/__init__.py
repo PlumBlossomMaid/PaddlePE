@@ -1,10 +1,17 @@
-"""ONNX and static graph export for paddlePE models."""
+"""ONNX and static graph export for paddlePE models.
+
+Only available when PaddlePaddle can be loaded directly.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-import paddle
+from paddlepe._compat import require_paddle
+
+require_paddle("export")
+
+import paddle  # noqa: E402
 
 
 def export_onnx(

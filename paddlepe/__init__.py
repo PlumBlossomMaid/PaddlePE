@@ -28,6 +28,6 @@ if _PADDLE_AVAILABLE:
 
     __all__ = ["PE", "registry"]
 else:
-    from paddlepe.remote import RemotePE as PE  # type: ignore[assignment]
+    from paddlepe.client import ClientPE as PE  # type: ignore[assignment]
 
     __all__ = ["PE"]

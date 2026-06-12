@@ -4,7 +4,7 @@ Communicates with a paddlePE server via HTTP.
 Used as a transparent fallback when Paddle cannot be loaded
 in the same process (e.g. when PyTorch already owns CUDA).
 
-API is identical to BasePE so it can be used as a drop-in replacement.
+API mirrors BasePE so it can be used as a drop-in replacement.
 """
 
 from __future__ import annotations
@@ -12,15 +12,14 @@ from __future__ import annotations
 import io
 import json
 import socket
-import subprocess
 import sys
 import time
-from pathlib import Path
+from typing import Any
 
 import numpy as np
 
+from paddlepe._compat import to_numpy
 from paddlepe.io.formats import HEADER_SIZE, decode_header
-from paddlepe.models.base import BasePE
 
 
 def _find_free_port() -> int:
@@ -46,15 +45,21 @@ def _wait_for_server(url: str, timeout: float = 30.0) -> bool:
 
 
 def _server_script_path() -> str:
-    """Get path to server.py."""
-    return str(Path(__file__).parent / "server.py")
+    """Get module path for server.
+
+    Uses ``-m paddlepe.server`` instead of file path to avoid
+    issues with Chinese characters in the installation path.
+    """
+    return "-m"
 
 
-class RemotePE(BasePE):
+class RemotePE:
     """PE wrapper that delegates to a subprocess HTTP server.
 
     The server runs Paddle in an isolated process, avoiding CUDA context
     conflicts with other frameworks (PyTorch, TensorFlow, etc.).
+
+    Does NOT inherit from BasePE so it can be imported without PaddlePaddle.
     """
 
     trainable = False
@@ -68,7 +73,6 @@ class RemotePE(BasePE):
         url: str | None = None,
         auto_shutdown: bool = True,
     ):
-        super().__init__()
         self._model_name = model
         self._ckpt = ckpt
         self._auto_shutdown = auto_shutdown
@@ -88,7 +92,8 @@ class RemotePE(BasePE):
         """Start paddlePE server as a subprocess."""
         cmd = [
             sys.executable,
-            _server_script_path(),
+            "-m",
+            "paddlepe.server",
             "--model",
             self._model_name,
             "--port",
@@ -97,22 +102,36 @@ class RemotePE(BasePE):
         if self._ckpt:
             cmd += ["--ckpt", self._ckpt]
 
-        self._process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,  # Capture stderr for debugging
-        )
+        import subprocess as _sp
 
-        if not _wait_for_server(self._base_url, timeout=30.0):
-            stderr_output = (
-                self._process.stderr.read().decode("utf-8", errors="replace")
-                if self._process.stderr
-                else ""
+        # On Windows, subprocess.Popen can hang when PaddlePaddle is
+        # loaded in the parent process. Use start /B via cmd.exe as
+        # a workaround when Paddle is present.
+        if "paddle" in sys.modules:
+            self._process = None
+            shell_cmd = (
+                f'start /B {sys.executable} -m paddlepe.server '
+                f'--model {self._model_name} --port {port}'
             )
+            if self._ckpt:
+                shell_cmd += f" --ckpt {self._ckpt}"
+            _sp.Popen(
+                ["cmd.exe", "/d", "/s", "/c", shell_cmd],
+                stdout=_sp.DEVNULL,
+                stderr=_sp.DEVNULL,
+            )
+        else:
+            self._process = _sp.Popen(
+                cmd,
+                stdout=_sp.DEVNULL,
+                stderr=_sp.DEVNULL,
+            )
+
+        if not _wait_for_server(self._base_url, timeout=60.0):
             self._process.kill()
             raise RuntimeError(
-                f"paddlePE server failed to start on port {port}.\n"
-                f"Server stderr:\n{stderr_output}"
+                f"paddlePE server failed to start on port {port} "
+                f"within 60 seconds."
             )
 
     def _load_model(self):
@@ -134,43 +153,46 @@ class RemotePE(BasePE):
                 f"Failed to load model: {result.get('error', 'unknown')}"
             )
 
-    def forward(self, x, *args, **kwargs):
+    def forward(self, x: Any, *args, **kwargs) -> Any:
         raise NotImplementedError(
             "RemotePE does not support forward() for training. "
-            "Use direct PE.create() in a Paddle process."
+            "Use direct PE.create() in a process with PaddlePaddle."
         )
+
+    def get_pitch(
+        self,
+        wav: Any,
+        sr: int = 16000,
+        **kwargs,
+    ) -> tuple[np.ndarray, np.ndarray | None]:
+        """Alias for infer()."""
+        return self.infer(wav, sr, **kwargs)
 
     def infer(
         self,
-        wav: np.ndarray,
+        wav: Any,
         sr: int = 16000,
         decoder: str = "local_argmax",
         threshold: float = 0.05,
         interp_uv: bool = False,
         **kwargs,
-    ) -> tuple:
+    ) -> tuple[np.ndarray, np.ndarray | None]:
         """Infer pitch via remote server.
 
-        Accepts either paddle.Tensor (converted to numpy) or numpy array.
-        Returns numpy arrays regardless of input type.
+        Accepts numpy.ndarray or any object with a ``.numpy()`` method
+        (e.g. torch.Tensor). Returns numpy arrays regardless of input type.
         """
         import urllib.request
 
-        # Convert to numpy int16 WAV
-        if hasattr(wav, "numpy"):
-            wav_np = wav.numpy()
-        else:
-            wav_np = np.asarray(wav, dtype=np.float32)
+        # Normalize input to numpy array (client mode — no paddle import)
+        wav_np = to_numpy(wav)
 
         # Normalize to int16 range if in float
-        if wav_np.dtype == np.float32 or wav_np.dtype == np.float64:
-            max_val = np.max(np.abs(wav_np))
-            if max_val > 1.0:
-                wav_int16 = wav_np.astype(np.int16)
-            else:
-                wav_int16 = (wav_np * 32767).astype(np.int16)
-        else:
+        max_val = np.max(np.abs(wav_np))
+        if max_val > 1.0:
             wav_int16 = wav_np.astype(np.int16)
+        else:
+            wav_int16 = (wav_np * 32767).astype(np.int16)
 
         # Build WAV bytes
         wav_bytes = self._wav_to_bytes(wav_int16, sr)
@@ -244,6 +266,24 @@ class RemotePE(BasePE):
 
     def __del__(self):
         """Shutdown server on cleanup."""
-        if self._auto_shutdown and self._process is not None:
-            self._process.terminate()
-            self._process.wait(timeout=5)
+        if not self._auto_shutdown:
+            return
+        # Preferred: graceful HTTP shutdown
+        try:
+            import urllib.request as _ur
+
+            _ur.urlopen(
+                f"{self._base_url}/shutdown",
+                data=b"{}",
+                timeout=3,
+            )
+            return
+        except Exception:
+            pass
+        # Fallback: kill process directly
+        try:
+            if self._process is not None:
+                self._process.terminate()
+                self._process.wait(timeout=3)
+        except Exception:
+            pass

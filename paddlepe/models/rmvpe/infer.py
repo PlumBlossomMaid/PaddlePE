@@ -152,6 +152,7 @@ class RMVPEPE(BasePE):
         Returns:
             (f0_hz, confidence)
         """
+        wav = self._to_tensor(wav)
         if wav.ndim == 1:
             wav = wav.unsqueeze(0)
         if wav.dim() == 3 and wav.shape[1] == 1:

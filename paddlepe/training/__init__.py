@@ -1,11 +1,16 @@
 """Training task base for paddlePE models.
 
 Uses ocean for model checkpointing and logging primitives.
+Only available when PaddlePaddle can be loaded directly.
 """
 
 from __future__ import annotations
 
-from paddle import nn
+from paddlepe._compat import require_paddle
+
+require_paddle("training")
+
+from paddle import nn  # noqa: E402
 
 
 class PETask(nn.Layer):

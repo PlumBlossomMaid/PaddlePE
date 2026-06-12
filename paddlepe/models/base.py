@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import paddle
 from paddle import nn
@@ -26,6 +26,20 @@ class BasePE(nn.Layer, ABC):
 
     def __init__(self):
         super().__init__()
+
+    @staticmethod
+    def _to_tensor(x: Any) -> paddle.Tensor:
+        """Normalize inference input to paddle.Tensor.
+
+        Accepts paddle.Tensor, numpy.ndarray, or any object with
+        a ``.numpy()`` method (e.g. torch.Tensor).
+
+        Must be called at the start of each ``infer()`` override
+        so users can pass flexible input types.
+        """
+        from paddlepe._compat import to_paddle_tensor
+
+        return to_paddle_tensor(x)
 
     @abstractmethod
     def forward(self, x: paddle.Tensor, *args, **kwargs) -> paddle.Tensor:
