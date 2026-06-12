@@ -111,7 +111,10 @@ class LocalMHA(nn.Layer):
             x = self.norm(x)
 
         q, k, v = self.to_qkv(x).chunk(3, dim=-1)
-        q, k, v = (rearrange(t, 'b n (h d) -> b h n d', h=self.heads) for t in (q, k, v))
+        q, k, v = (
+            rearrange(t, 'b n (h d) -> b h n d', h=self.heads)
+            for t in (q, k, v)
+        )
 
         if self.qk_rmsnorm:
             q, k = map(l2norm, (q, k))
