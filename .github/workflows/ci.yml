@@ -61,7 +61,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install paddlepaddle==3.3.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
-          pip install numpy
+          pip install numpy pytest pytest-timeout
 
       - name: Install paddlePE
         run: |
@@ -93,6 +93,7 @@ jobs:
       - name: Install PaddlePaddle (GPU)
         run: |
           pip install paddlepaddle==3.3.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+          pip install numpy pytest pytest-timeout
 
       - name: Install paddlePE
         run: |
