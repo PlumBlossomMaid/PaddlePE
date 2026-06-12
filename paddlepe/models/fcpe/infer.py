@@ -36,6 +36,7 @@ class FCPEPE(BasePE):
         win_length: int = 1024,
         f_min: float = 0.0,
         f_max: float = 8000.0,
+        conv_only: bool = True,
     ):
         super().__init__()
         self.sample_rate = sample_rate
@@ -62,6 +63,7 @@ class FCPEPE(BasePE):
             n_heads=n_heads,
             f0_min=f0_min,
             f0_max=f0_max,
+            conv_only=conv_only,
         )
 
     def _wav_to_mel(self, wav: paddle.Tensor, sr: int) -> paddle.Tensor:
@@ -176,7 +178,8 @@ class FCPEPE(BasePE):
         if wav.dim() > 2:
             wav = wav.squeeze(-1) if wav.shape[-1] == 1 else wav[:, 0]
 
-        mel = self._wav_to_mel(wav, sr)
+        mel = self._wav_to_mel(wav, sr)  # (B, T, mel_bins)
+
         f0 = self.backbone.infer(mel, decoder=decoder, threshold=threshold)
         # Extract confidence
         with paddle.no_grad():

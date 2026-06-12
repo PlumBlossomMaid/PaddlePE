@@ -71,8 +71,14 @@ def _decode_argmax(
 def _decode_weighted_argmax(
     logits: paddle.Tensor,
 ) -> tuple[paddle.Tensor, paddle.Tensor]:
-    """Decode by weighted sum near argmax (sub-bin resolution)."""
-    bins = logits.argmax(axis=1)  # (B,)
+    """Decode by weighted sum near argmax (sub-bin resolution).
+
+    Mirrors torchcrepe.decode.weighted_argmax:
+      1. Find argmax bin
+      2. Mask out bins outside [argmax-4, argmax+5]
+      3. Weighted sum over remaining bins using cents as weights
+    """
+    bins = logits.argmax(axis=1)  # (T,)
 
     # Build weight vector lazily
     if not hasattr(_decode_weighted_argmax, "_weights"):
@@ -81,13 +87,20 @@ def _decode_weighted_argmax(
 
     weights = _decode_weighted_argmax._weights  # (360,)
 
-    # Convert logits to probabilities
-    probs = nn.functional.sigmoid(logits)  # (B, 360)
+    # Build window mask: zero out bins outside [argmax-4, argmax+5]
+    arange = paddle.arange(PITCH_BINS, dtype=paddle.int64)  # (360,)
+    bins_exp = bins.unsqueeze(-1)  # (T, 1)
+    mask = (arange >= (bins_exp - 4)) & (arange <= (bins_exp + 5))  # (T, 360)
 
-    # Weighted sum
-    weighted = (weights * probs).sum(axis=1)  # (B,)
-    normalizer = probs.sum(axis=1)  # (B,)
-    cents = weighted / (normalizer + 1e-12)
+    # Convert logits to probabilities and apply mask
+    probs = nn.functional.sigmoid(logits)  # (T, 360)
+    probs = probs * mask.astype(probs.dtype)
+
+    # Weighted sum over the 360 bins
+    weighted = (weights * probs).sum(axis=1)  # (T,)
+    normalizer = probs.sum(axis=1) + 1e-12  # (T,)
+    cents = weighted / normalizer
+
     return bins, _cents_to_frequency(cents)
 
 

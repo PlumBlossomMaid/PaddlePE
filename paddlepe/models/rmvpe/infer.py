@@ -75,7 +75,7 @@ class MelSpectrogram(nn.Layer):
 
         pad = self.win_length // 2 if center else 0
         if pad > 0:
-            wav = F.pad(wav.unsqueeze(-1), [pad, pad]).squeeze(-1)
+            wav = F.pad(wav, [pad, pad], data_format="NCL")
 
         stft = paddle.signal.stft(
             wav,

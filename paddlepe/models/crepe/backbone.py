@@ -166,9 +166,11 @@ class CrepeBackbone(nn.Layer):
             x = self.bns[i](x)
             x = nn.functional.max_pool2d(x, kernel_size=(2, 1), stride=(2, 1))
 
-        # Flatten: (B, C, H, 1) -> (B, C*H)
-        x = x.squeeze(-1)  # (B, C, H)
-        x = x.reshape((x.shape[0], -1))  # (B, C*H)
+        # Flatten: (B, C, H, 1) -> (B, H*C)
+        # Must match torch's permute(0, 2, 1, 3).reshape(-1, in_features)
+        # so elements are ordered (batch, height, channel), not (batch, channel, height)
+        x = x.transpose([0, 2, 1, 3])  # (B, H, C, 1)
+        x = x.reshape((x.shape[0], -1))  # (B, H*C)
 
         # Classifier
         x = self.fc2(x)  # (B, 360)
