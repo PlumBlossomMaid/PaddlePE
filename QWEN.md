@@ -39,6 +39,7 @@ paddlepe/
 │   ├── fcpe/                # MelConformerF0 (Conformer-based)
 │   ├── rmvpe/               # RMVPEUNet (UNet + BiGRU)
 │   ├── crepe/               # CrepeBackbone (6-layer ConvNet)
+│   ├── penn/                # PennBackbone (6 Conv1D + LayerNorm)
 │   └── wrappers/            # Parselmouth, pyworld (non-DL)
 ├── postproc/                # Model-agnostic postprocessing
 ├── io/                      # .f0 binary format + CSV + .pv/.tsv
@@ -55,6 +56,7 @@ paddlepe/
 |------|------|----------|---------|
 | `crepe` | DL | 6-layer ConvNet | ckpts/crepe.pdparams (167M) |
 | `fcpe` | DL | MelConformerF0 | ckpts/fcpe.pdparams (42M) |
+| `penn` | DL | PennBackbone | ckpts/penn.pdparams (35M) |
 | `rmvpe` | DL | RMVPEUNet | ckpts/rmvpe.pdparams (355M) |
 | `parselmouth` | Wrapper | Praat autocorrelation | N/A |
 | `world` | Wrapper | WORLD Harvest/DIO | N/A |
@@ -64,6 +66,7 @@ paddlepe/
 CREPE: Paddle output vs PyTorch reference: max diff < 3e-5 (fp64).
 RMVPE: Weights converted and verified.
 FCPE: Weights partially mapped (needs exact key alignment).
+PENN: 220Hz→220.3Hz, argmax matches torch exactly.
 
 ## Binary Format (.f0)
 
