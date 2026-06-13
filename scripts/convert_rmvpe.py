@@ -1,4 +1,5 @@
 """Convert RMVPE checkpoint: add backbone. prefix for wrapped model loading."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,6 +23,7 @@ def convert_rmvpe_ckpt(src: str | Path, dst: str | Path):
 
     # Verify
     from paddlepe.models.rmvpe.infer import RMVPEPE
+
     model = RMVPEPE(n_blocks=4, n_gru=1)
     model.set_state_dict(new_ckpt)
     print("Verification: model loaded OK (no warnings = clean)")

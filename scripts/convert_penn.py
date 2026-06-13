@@ -103,9 +103,7 @@ def convert(
 
     source_path = Path(source) if source else SOURCE_CKPT
     if not source_path.exists():
-        raise FileNotFoundError(
-            f"PyTorch checkpoint not found: {source_path}"
-        )
+        raise FileNotFoundError(f"PyTorch checkpoint not found: {source_path}")
 
     if output is None:
         output = PADDLE_CKPTS / "penn.pdparams"
@@ -119,9 +117,7 @@ def convert(
     # 1. Load PyTorch checkpoint
     # ------------------------------------------------------------------
     print(f"[1/5] Loading torch checkpoint: {source_path}")
-    torch_ckpt = torch.load(
-        source_path, map_location="cpu", weights_only=True
-    )
+    torch_ckpt = torch.load(source_path, map_location="cpu", weights_only=True)
 
     # The checkpoint has: step, model (state_dict), optimizer
     if "model" in torch_ckpt:
@@ -133,14 +129,14 @@ def convert(
     for k, v in torch_sd.items():
         shape = list(v.shape)
         if k in key_map:
-            print(f"  {k:25s} {str(shape):20s} -> {key_map[k]}")
+            print(f"  {k:25s} {shape!s:20s} -> {key_map[k]}")
         else:
-            print(f"  {k:25s} {str(shape):20s}  (no mapping)")
+            print(f"  {k:25s} {shape!s:20s}  (no mapping)")
 
     # ------------------------------------------------------------------
     # 2. Build Paddle model
     # ------------------------------------------------------------------
-    print(f"\n[2/5] Building Paddle PennPE...")
+    print("\n[2/5] Building Paddle PennPE...")
     import paddle
 
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -158,7 +154,7 @@ def convert(
     # ------------------------------------------------------------------
     # 3. Build state dict
     # ------------------------------------------------------------------
-    print(f"\n[3/5] Mapping weights to Paddle format...")
+    print("\n[3/5] Mapping weights to Paddle format...")
     paddle_state = {}
     mapped = 0
     errors = []
@@ -179,11 +175,15 @@ def convert(
 
         if is_norm and arr.ndim > 1:
             arr = arr.reshape(-1)
-            print(f"  (flattened LayerNorm weight: {list(torch_tensor.shape)} -> {list(arr.shape)})")
+            print(
+                f"  (flattened LayerNorm weight: {list(torch_tensor.shape)} -> {list(arr.shape)})"
+            )
 
         # Check shape compatibility
         if bare_key in dict(paddle_backbone.named_parameters()):
-            expected = list(dict(paddle_backbone.named_parameters())[bare_key].shape)
+            expected = list(
+                dict(paddle_backbone.named_parameters())[bare_key].shape
+            )
             actual = list(arr.shape)
             if expected != actual:
                 errors.append(
@@ -224,7 +224,7 @@ def convert(
 # ---------------------------------------------------------------------------
 def _verify(
     torch_sd: dict,
-    paddle_model: "nn.Layer",
+    paddle_model: nn.Layer,
     paddle_state: dict[str, np.ndarray],
 ) -> None:
     """Run identical random input through both frameworks and compare."""
@@ -289,7 +289,9 @@ def _verify(
     missing = model_keys - set(bare_state.keys())
 
     if missing:
-        print(f"\n  Info: {len(missing)} Paddle model keys initialized as defaults:")
+        print(
+            f"\n  Info: {len(missing)} Paddle model keys initialized as defaults:"
+        )
         for k in sorted(missing):
             print(f"    {k}")
 
@@ -324,7 +326,9 @@ def _verify(
         print(f"  Mean diff: {mean_diff:.6e}")
         print(f"  Allclose (1e-4): {allclose}")
     else:
-        print(f"\n  Shape mismatch: torch {out_torch.shape} vs paddle {out_paddle.shape}")
+        print(
+            f"\n  Shape mismatch: torch {out_torch.shape} vs paddle {out_paddle.shape}"
+        )
 
     print(f"{'=' * 60}\n")
 

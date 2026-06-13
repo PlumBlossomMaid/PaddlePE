@@ -3,10 +3,13 @@
 Run this in a fresh Python process (no PaddlePaddle pre-loaded):
     python scripts/test_client_standalone.py
 """
-from paddlepe.client import ClientPE
-import numpy as np
-import time
+
 import sys
+import time
+
+import numpy as np
+
+from paddlepe.client import ClientPE
 
 print("=" * 60)
 print("Client Mode Test (no PaddlePaddle)")
@@ -15,7 +18,7 @@ print("=" * 60)
 # 1. list_models
 t0 = time.time()
 models = ClientPE.list_models()
-print(f"[OK] ClientPE.list_models() = {models} ({(time.time()-t0):.1f}s)")
+print(f"[OK] ClientPE.list_models() = {models} ({(time.time() - t0):.1f}s)")
 assert "fcpe" in models
 
 # 2. create
@@ -31,6 +34,7 @@ assert f0.shape[0] > 0
 # 4. infer with torch.Tensor (simulate PyTorch coexistence)
 try:
     import torch
+
     wav_t = torch.from_numpy(wav)
     f0, conf = pe.infer(wav_t, 16000)
     print(f"[OK] pe.infer(torch.Tensor) -> f0={f0.shape}")
@@ -67,6 +71,7 @@ except NotImplementedError:
 
 # 9. training/export -> clean error
 from paddlepe._compat import require_paddle
+
 try:
     require_paddle("test")
     print("[FAIL] require_paddle should raise")

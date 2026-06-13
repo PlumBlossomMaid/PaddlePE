@@ -10,7 +10,7 @@ from paddlepe._compat import require_paddle
 
 require_paddle("training")
 
-from paddle import nn  # noqa: E402
+from paddle import nn
 
 
 class PETask(nn.Layer):

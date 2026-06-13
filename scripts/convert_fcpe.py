@@ -1,4 +1,5 @@
 """Convert FCPE checkpoint to paddlePE format."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -33,12 +34,12 @@ def convert_fcpe_ckpt(src: str | Path, dst: str | Path):
             if idx > 0 and idx + 2 < len(parts):
                 prefix = parts[:idx]
                 # net.0 → ff1.0 (LayerNorm)
-                # net.2 → ff1.1 (Linear)  
+                # net.2 → ff1.1 (Linear)
                 # net.4 → conv.net (ConformerConvModule)
                 # net.6 → ff1.2 (Linear)
                 # net.8 → ff1.3 (Dropout)
                 seq_idx = int(parts[idx + 2])
-                sub_key = parts[idx + 3:]
+                sub_key = parts[idx + 3 :]
                 if seq_idx == 0:
                     new_parts = prefix + ["ff1", "0"] + sub_key
                 elif seq_idx == 1:
@@ -69,6 +70,7 @@ def convert_fcpe_ckpt(src: str | Path, dst: str | Path):
     print(f"Converted {len(new_ckpt)} keys from {src} → {dst}")
 
     from paddlepe.models.fcpe.infer import FCPEPE
+
     pe = FCPEPE()
     missing, unexpected = pe.set_state_dict(new_ckpt)
     if missing:
