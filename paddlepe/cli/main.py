@@ -11,10 +11,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
 import numpy as np
+
+from paddlepe.logger import configure_logging, get_logger
+
+logger = get_logger(__name__)
 
 
 def _list_models() -> list[str]:
@@ -32,10 +37,7 @@ def _do_extract(args):
     try:
         import soundfile as sf
     except ImportError:
-        print(
-            "Error: 'soundfile' required for WAV I/O. "
-            "Install with: pip install soundfile"
-        )
+        logger.error("soundfile required for WAV I/O; install with: pip install soundfile")
         sys.exit(1)
 
     wav, sr = sf.read(args.input, dtype="float32")
@@ -73,10 +75,10 @@ def _do_extract(args):
 
         write_csv(output_path, f0_np, conf_np, int(sr), int(sr / 100))
     else:
-        print(f"Error: Unknown format: {output_format}")
+        logger.error("Unknown format: %s", output_format)
         sys.exit(1)
 
-    print(f"Wrote {len(f0_np)} frames to {output_path}")
+    logger.info("Wrote %d frames to %s", len(f0_np), output_path)
 
 
 def _do_convert(args):
@@ -100,13 +102,14 @@ def _do_convert(args):
 
         write_csv(output_path, f0, confidence, sr, hop)
     else:
-        print(f"Error: Unknown format: {output_format}")
+        logger.error("Unknown format: %s", output_format)
         sys.exit(1)
 
-    print(f"Converted {len(f0)} frames to {output_path}")
+    logger.info("Converted %d frames to %s", len(f0), output_path)
 
 
 def main():
+    configure_logging()
     # Check for server mode FIRST, before argparse, to avoid
     # positional arguments being misinterpreted as subparser commands.
     if len(sys.argv) > 1 and sys.argv[1] == "server":
@@ -185,9 +188,7 @@ def main():
 
     if args.list:
         models = _list_models()
-        print("Available models:")
-        for m in models:
-            print(f"  - {m}")
+        logger.info("Available models: %s", ", ".join(models))
         return
 
     if args.input is None:
@@ -196,7 +197,7 @@ def main():
 
     input_path = Path(args.input)
     if not input_path.exists():
-        print(f"Error: input file not found: {args.input}")
+        logger.error("Input file not found: %s", args.input)
         sys.exit(1)
 
     # Auto-detect: extract or convert
@@ -206,7 +207,7 @@ def main():
     elif suffix in (".f0", ".csv", ".pv", ".tsv"):
         _do_convert(args)
     else:
-        print(f"Error: unknown input format: {suffix}")
+        logger.error("Unknown input format: %s", suffix)
         sys.exit(1)
 
 

@@ -1,13 +1,16 @@
 """paddlePE: Unified Pitch Extraction Toolkit for PaddlePaddle.
 
-When imported, tries to load PaddlePaddle. If the DLL load fails
+When imported, tries to load PaddlePaddle.  If the DLL load fails
 (e.g. PyTorch already owns CUDA on Windows), falls back to
 client-only mode with a subprocess server.
+
+Use the :func:`paddlepe.logger.get_logger` function to obtain a
+project-aware logger instead of ``print()``.
 """
 
-import logging
+from paddlepe.logger import get_logger, warn_once
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 try:
     import paddle  # noqa: F401
@@ -15,10 +18,10 @@ try:
     _PADDLE_AVAILABLE = True
 except (OSError, ImportError) as e:
     _PADDLE_AVAILABLE = False
-    logger.warning(
+    warn_once(
         "PaddlePaddle import failed (%s). "
-        "paddlePE runs in client-only mode (subprocess server).",
-        e,
+        "paddlePE runs in client-only mode (subprocess server)." % e,
+        key="paddle_unavailable",
     )
 
 if _PADDLE_AVAILABLE:

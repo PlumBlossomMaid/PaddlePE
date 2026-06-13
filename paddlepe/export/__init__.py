@@ -8,10 +8,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from paddlepe._compat import require_paddle
+from paddlepe.logger import get_logger
 
 require_paddle("export")
 
 import paddle  # noqa: E402
+
+logger = get_logger(__name__)
 
 
 def export_onnx(
@@ -41,7 +44,7 @@ def export_onnx(
         enable_onnx_checker=True,
     )
     onnx_path = output_path.with_suffix(".onnx")
-    print(f"ONNX model exported to: {onnx_path}")
+    logger.info("ONNX model exported to: %s", onnx_path)
 
 
 def export_static_graph(
@@ -65,7 +68,7 @@ def export_static_graph(
         path=str(output_path.with_suffix("")),
         input_spec=input_spec,
     )
-    print(f"Static graph exported to: {output_path.with_suffix('.pdmodel')}")
+    logger.info("Static graph exported to: %s", output_path.with_suffix(".pdmodel"))
 
 
 def export_fcpe_to_onnx(
