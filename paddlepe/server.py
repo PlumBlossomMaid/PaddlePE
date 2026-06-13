@@ -165,11 +165,23 @@ class _PitchHandler(BaseHTTPRequestHandler):
                 )
 
             import paddle
+            import time as _time
+
+            duration = len(wav_np) / sr
+            _t0 = _time.time()
 
             wav_t = paddle.to_tensor(wav_np)
             f0_t, conf_t = _MODEL.infer(wav_t, sr, **params)
             f0_np = f0_t.numpy()
             conf_np = conf_t.numpy() if conf_t is not None else None
+
+            _elapsed = _time.time() - _t0
+            _rtf = _elapsed / duration if duration > 0 else 0
+            print(
+                f"[paddlePE server] infer {_MODEL_NAME} "
+                f"| {duration:.1f}s audio in {_elapsed:.3f}s "
+                f"| RTF {_rtf:.3f}x"
+            )
 
             hop = getattr(_MODEL, "hop_length", sr // 100)
             self._send_f0(200, f0_np, conf_np, sr, hop)
