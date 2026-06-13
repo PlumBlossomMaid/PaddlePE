@@ -98,6 +98,7 @@ class _PitchHandler(BaseHTTPRequestHandler):
 
         if self.path == "/shutdown":
             self._send_json(200, {"status": "shutting down"})
+            print("[paddlePE server] shutting down ...")
             import threading as _t
 
             _t.Thread(target=_shutdown_after_delay, daemon=True).start()
@@ -215,6 +216,9 @@ def run_server(
         _load_model(model, ckpt)
 
     _SERVER = HTTPServer(("127.0.0.1", port), _PitchHandler)
+    model_info = f"model={model}" if model else "no-preload mode"
+    print(f"[paddlePE server] listening on http://127.0.0.1:{port} ({model_info})")
+    print(f"[paddlePE server] endpoints: GET /health, GET /models, POST /load, POST /infer, POST /shutdown")
     _SERVER.serve_forever()
 
 

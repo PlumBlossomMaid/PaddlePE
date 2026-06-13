@@ -39,7 +39,7 @@ def _wait_for_server(url: str, timeout: float = 30.0) -> bool:
             resp = urllib.request.urlopen(f"{url}/health", timeout=2)
             if resp.status == 200:
                 return True
-        except (urllib.error.URLError, ConnectionError):
+        except (urllib.error.URLError, OSError):
             time.sleep(0.5)
     return False
 
