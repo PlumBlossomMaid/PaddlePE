@@ -165,20 +165,20 @@ class FCPECollator(BaseCollator):
             mel_list.append(mel)
             label_list.append(paddle.to_tensor(label, dtype=paddle.float32))
 
-        # Pad to max T
-        max_T = max(m.shape[1] for m in mel_list)
+        # Pad time dimension to match longest in batch
+        # mel: (T_mel, n_mels), label: (T_mel, 360)
+        # Paddle pad format: [d0_left, d0_right, d1_left, d1_right, ...]
+        max_T = max(m.shape[0] for m in mel_list)
         for i in range(len(mel_list)):
-            T = mel_list[i].shape[1]
+            T = mel_list[i].shape[0]
             if T < max_T:
                 pad = max_T - T
                 mel_list[i] = paddle.nn.functional.pad(
-                    mel_list[i].unsqueeze(0),
-                    [0, 0, 0, pad],
+                    mel_list[i], [0, pad, 0, 0],
                     mode="constant",
-                ).squeeze(0)
+                )
                 label_list[i] = paddle.nn.functional.pad(
-                    label_list[i],
-                    [0, 0, 0, pad],
+                    label_list[i], [0, pad, 0, 0],
                     mode="constant",
                     value=0.0,
                 )

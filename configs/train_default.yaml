@@ -1,0 +1,34 @@
+# PaddlePE 训练配置
+# 用法: python scripts/train.py --config configs/train_default.yaml
+
+# ── 模型 ──
+model: rmvpe           # fcpe | rmvpe | crepe | penn
+
+# ── 数据集 ──
+datasets:
+  - mir1k                # 会自动找 data/mir1k + preprocess_mir1k
+  - ptdb                 # data/ptdb + preprocess_ptdb
+
+# ── 训练 ──
+training:
+  epochs: 1
+  batch_size: 2
+  device: gpu:0          # cpu | gpu:0 | gpu:1
+  val_split: 0.02
+  num_workers: 0
+
+# ── 优化器 ──
+optimizer:
+  lr: 0.001
+  weight_decay: 0.0
+
+# ── 日志 ──
+logging:
+  log_dir: null          # null = 不写 VisualDL
+  log_every_n_steps: 10
+
+# ── 检查点 ──
+checkpoint:
+  enable: false
+  dirpath: null
+  every_n_epochs: 1

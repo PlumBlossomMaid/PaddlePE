@@ -9,6 +9,9 @@ build/
 # PaddlePE
 ckpts/*_backbone.pdparams
 
+# Data (HDF5, extracted datasets — too large for git)
+data/
+
 # IDE
 .vscode/
 .idea/

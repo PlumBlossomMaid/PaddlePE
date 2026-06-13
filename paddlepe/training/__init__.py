@@ -1,4 +1,4 @@
-"""Training task base for paddlePE models.
+"""Training components for paddlePE — DataModule, datasets, collators.
 
 Uses ocean for model checkpointing and logging primitives.
 Only available when PaddlePaddle can be loaded directly.
@@ -10,7 +10,12 @@ from paddlepe._compat import require_paddle
 
 require_paddle("training")
 
-from paddle import nn
+from paddle import nn  # noqa: E402
+
+from paddlepe.training.hdf5_dataset import HDF5Dataset  # noqa: E402
+from paddlepe.training.pe_datamodule import PEDataModule  # noqa: E402
+from paddlepe.training import collators  # noqa: E402
+from paddlepe.training import samplers  # noqa: E402
 
 
 class PETask(nn.Layer):

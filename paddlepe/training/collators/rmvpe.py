@@ -201,7 +201,9 @@ class RMVPECollator(BaseCollator):
             mel_list.append(mel)
             label_list.append(paddle.to_tensor(label, dtype=paddle.float32))
 
-        # Pad all samples to the longest in batch
+        # Pad time dimension to match longest in batch
+        # mel: (n_mels, T), label: (T, 360)
+        # Paddle pad format: [d0_left, d0_right, d1_left, d1_right, ...]
         max_T = max(m.shape[-1] for m in mel_list)
         mel_padded, label_padded = [], []
         for mel, label in zip(mel_list, label_list):
@@ -209,10 +211,10 @@ class RMVPECollator(BaseCollator):
             if T < max_T:
                 pad = max_T - T
                 mel = paddle.nn.functional.pad(
-                    mel, [0, pad], mode="constant", value=0.0
+                    mel, [0, 0, 0, pad], mode="constant", value=0.0
                 )
                 label = paddle.nn.functional.pad(
-                    label, [0, 0, 0, pad], mode="constant", value=0.0
+                    label, [0, pad, 0, 0], mode="constant", value=0.0
                 )
             mel_padded.append(mel)
             label_padded.append(label)
