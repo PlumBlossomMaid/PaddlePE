@@ -1,24 +1,29 @@
 """Preprocess PTDB-TUG → unified HDF5.
 
-Auto-download 3.9G zip from Graz University if data is missing.
+Input format (from SPEECH_DATA_ZIPPED.zip, 3.9G):
+  SPEECH DATA/{FEMALE,MALE}/LAR/{F01..M10}/lar_{spk}_{utt}.wav   — 48kHz 16-bit PCM
+  SPEECH DATA/{FEMALE,MALE}/REF/{F01..M10}/ref_{spk}_{utt}.f0   — EGG-derived F0,
+                                                                  4 columns per line:
+                                                                  col 1-2: other signals
+                                                                  col 3: F0 (Hz)
+                                                                  col 4: confidence
+                                                                  0 = unvoiced.
 
-Input format (extracted zip):
-  SPEECH_DATA/{F01..F10,M01..M10}/{utterance}.wav  — 48kHz 16-bit PCM
-  SPEECH_DATA/{F01..F10,M01..M10}/{utterance}.f0   — F0 (Hz) from EGG,
-                                                       one value per line,
-                                                       1 ms intervals.
-                                                       0 = unvoiced.
+  Only LAR/ (headset microphone) has clean speech for training.
+  Each LAR/*.wav has a corresponding REF/*.f0 with EGG-derived pitch.
+
+  All files are paired by speaker + utterance name
+  (e.g., lar_F01_sa1.wav ↔ ref_F01_sa1.f0).
 
 Output:
   HDF5 file with one group per sample, each containing
-  ``waveform`` (16kHz mono), ``f0`` (Hz, 10ms hop),
+  ``waveform`` (16kHz mono, LAR channel), ``f0`` (Hz, 10ms hop),
   ``sr``, ``hop``, ``name``.
 """
 
 from __future__ import annotations
 
 import logging
-import urllib.request
 import zipfile
 from pathlib import Path
 
@@ -29,62 +34,56 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-PTDB_ZIP_URL = (
-    "https://www2.spsc.tugraz.at/databases/PTDB-TUG/SPEECH_DATA_ZIPPED.zip"
-)
-TARGET_SR = 16000  # unified sample rate
+TARGET_SR = 16000
 TARGET_HOP = 160  # 10 ms @ 16 kHz
 
 
-def _download_and_extract(root: str) -> Path:
-    """Download SPEECH_DATA_ZIPPED.zip and extract it.
+def _find_speech_dir(root: Path) -> Path:
+    """Locate the extracted ``SPEECH DATA`` directory (note the space)."""
+    # The zip extracts to a directory named "SPEECH DATA" (with space)
+    candidates = [
+        root / "SPEECH DATA",
+        root / "SPEECH_DATA",
+        root,
+    ]
+    for c in candidates:
+        if c.exists() and any(c.iterdir()):
+            return c
+    raise FileNotFoundError(
+        f"Cannot find extracted SPEECH DATA directory under {root}. "
+        "Try extracting SPEECH_DATA_ZIPPED.zip manually."
+    )
 
-    Returns:
-        Path to the extracted SPEECH_DATA directory.
+
+def _collect_pairs(speech_dir: Path) -> list[tuple[Path, Path]]:
+    """Collect (wav_path, f0_path) pairs from LAR/ and REF/ subdirs.
+
+    Matches lar_{spk}_{utt}.wav ↔ ref_{spk}_{utt}.f0 by speaker and utterance.
     """
-    root = Path(root)
-    zip_path = root / "SPEECH_DATA_ZIPPED.zip"
-    extract_dir = root / "SPEECH_DATA"
+    pairs = []
 
-    # Already extracted
-    if extract_dir.exists() and any(extract_dir.iterdir()):
-        logger.info("Found extracted PTDB-TUG at %s", extract_dir)
-        return extract_dir
+    # Find all LAR .wav files
+    lar_wavs = list(speech_dir.rglob("**/LAR/**/*.wav"))
 
-    # Download if missing
-    if not zip_path.exists():
-        logger.info("Downloading PTDB-TUG (3.9G) ...")
-        root.mkdir(parents=True, exist_ok=True)
+    for wav_path in lar_wavs:
+        stem = wav_path.stem  # e.g. "lar_F01_sa1"
+        # Build expected .f0 path: replace "lar_" with "ref_", REF not LAR
+        f0_stem = stem.replace("lar_", "ref_", 1)
+        # Navigate: go up to speaker dir, then up to LAR/, sibling REF/, then speaker dir
+        # Path: .../LAR/F01/lar_F01_sa1.wav → .../REF/F01/ref_F01_sa1.f0
+        speaker_dir = wav_path.parent  # .../LAR/F01
+        ref_dir = speaker_dir.parent.parent / "REF" / speaker_dir.name
+        f0_path = ref_dir / f"{f0_stem}.f0"
 
-        def _reporthook(count, block_size, total_size):
-            downloaded = count * block_size / (1024 * 1024)
-            total_mb = total_size / (1024 * 1024)
-            if count % 50 == 0:
-                logger.info(
-                    "  %.0f / %.0f MB (%.0f%%)",
-                    downloaded,
-                    total_mb,
-                    100 * downloaded / total_mb if total_mb > 0 else 0,
-                )
+        if f0_path.exists():
+            pairs.append((wav_path, f0_path))
+        else:
+            logger.warning("Missing .f0 for %s (expected %s)", stem, f0_path)
 
-        urllib.request.urlretrieve(
-            PTDB_ZIP_URL,
-            str(zip_path),
-            reporthook=_reporthook,
-        )
-        logger.info(
-            "Download complete: %s (%.1f GB)",
-            zip_path,
-            zip_path.stat().st_size / (1024**3),
-        )
-
-    # Extract
-    logger.info("Extracting %s ...", zip_path.name)
-    with zipfile.ZipFile(str(zip_path)) as zf:
-        zf.extractall(str(root))
-    logger.info("Extracted to %s", extract_dir)
-
-    return extract_dir
+    logger.info(
+        "Found %d wav-f0 pairs from %d LAR wav files", len(pairs), len(lar_wavs)
+    )
+    return pairs
 
 
 def preprocess(
@@ -93,17 +92,17 @@ def preprocess(
     sr: int = TARGET_SR,
     min_f0_hz: float = 40.0,
     overwrite: bool = False,
-    auto_download: bool = True,
+    auto_extract: bool = True,
 ) -> None:
     """Preprocess PTDB-TUG to unified HDF5.
 
     Args:
-        root: directory for download/extraction (or existing SPEECH_DATA dir)
+        root: directory containing SPEECH_DATA_ZIPPED.zip or extracted SPEECH DATA/
         output_path: where to write the .h5 file
         sr: target sample rate (16000)
         min_f0_hz: frames with F0 below this are treated as unvoiced
         overwrite: overwrite existing HDF5
-        auto_download: download from Graz University if data is missing
+        auto_extract: extract zip if SPEECH DATA directory doesn't exist
     """
     root = Path(root)
     output_path = Path(output_path)
@@ -114,91 +113,105 @@ def preprocess(
         )
         return
 
-    # Download / locate data
-    if auto_download:
-        speech_dir = _download_and_extract(root)
-    else:
-        speech_dir = root / "SPEECH_DATA"
-        if not speech_dir.exists():
-            raise FileNotFoundError(
-                f"SPEECH_DATA not found at {speech_dir}. "
-                "Set auto_download=True or place data manually."
-            )
+    # Extract zip if needed
+    zip_path = root / "SPEECH_DATA_ZIPPED.zip"
+    speech_dir_candidates = [
+        root / "SPEECH DATA",
+        root / "SPEECH_DATA",
+        root,
+    ]
+    is_extracted = any(
+        c.exists() and any(c.iterdir()) for c in speech_dir_candidates
+    )
 
-    # Discover all .wav files
-    wav_files = sorted(speech_dir.rglob("*.wav"))
-    if not wav_files:
+    if not is_extracted and zip_path.exists() and auto_extract:
+        logger.info("Extracting %s ...", zip_path.name)
+        with zipfile.ZipFile(str(zip_path)) as zf:
+            zf.extractall(str(root))
+        logger.info("Extraction complete.")
+
+    speech_dir = _find_speech_dir(root)
+
+    # Collect (wav, f0) pairs
+    pairs = _collect_pairs(speech_dir)
+    if not pairs:
         raise FileNotFoundError(
-            f"No .wav files found under {speech_dir}. "
-            "Is the dataset extracted correctly?"
+            f"No valid wav-f0 pairs found under {speech_dir}."
         )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    n_total = len(wav_files)
     n_skipped = 0
 
     with h5py.File(str(output_path), "w") as f:
         f.attrs["dataset"] = "PTDB-TUG"
-        f.attrs["n_samples"] = n_total
+        f.attrs["n_samples"] = len(pairs)
         f.attrs["sr"] = sr
 
-        for idx, wav_path in enumerate(
-            tqdm(wav_files, desc="Preprocessing PTDB-TUG")
+        for idx, (wav_path, f0_path) in enumerate(
+            tqdm(pairs, desc="Preprocessing PTDB-TUG")
         ):
-            f0_path = wav_path.with_suffix(".f0")
-            if not f0_path.exists():
-                logger.warning("Missing .f0 for %s, skipping", wav_path.name)
+            try:
+                # ── Read audio ──
+                audio, file_sr = sf.read(str(wav_path))
+                if audio.ndim > 1:
+                    audio = audio.mean(axis=-1)
+
+                # ── Read F0 from .f0 file (4 columns, col 3 = F0 in Hz) ──
+                f0_raw = np.loadtxt(str(f0_path), dtype=np.float32)
+                if f0_raw.ndim == 2 and f0_raw.shape[1] >= 3:
+                    f0_hz = f0_raw[:, 2]  # column 3 (0-indexed: 2)
+                elif f0_raw.ndim == 1:
+                    f0_hz = f0_raw
+                else:
+                    logger.warning(
+                        "Unexpected F0 format in %s, skipping", f0_path
+                    )
+                    n_skipped += 1
+                    continue
+
+                # ── Resample audio: 48 kHz → 16 kHz ──
+                if file_sr != sr:
+                    import scipy.signal
+
+                    ratio = sr / file_sr
+                    new_len = int(len(audio) * ratio)
+                    audio = scipy.signal.resample(audio, new_len)
+
+                # ── Downsample F0: 1 ms → 10 ms (take every 10th value) ──
+                target_frames = len(audio) // TARGET_HOP
+                f0 = np.zeros(target_frames, dtype=np.float32)
+                for t in range(target_frames):
+                    src_idx = t * 10
+                    if src_idx < len(f0_hz):
+                        val = f0_hz[src_idx]
+                        f0[t] = val if val >= min_f0_hz else 0.0
+
+                # ── Write HDF5 group ──
+                grp = f.create_group(f"sample_{idx:05d}")
+                grp.create_dataset(
+                    "waveform",
+                    data=audio.astype(np.float32),
+                    compression="gzip",
+                    compression_opts=3,
+                )
+                grp.create_dataset(
+                    "f0",
+                    data=f0.astype(np.float32),
+                    compression="gzip",
+                    compression_opts=3,
+                )
+                grp.create_dataset("sr", data=sr)
+                grp.create_dataset("hop", data=TARGET_HOP)
+                grp.attrs["name"] = wav_path.stem
+
+            except Exception as e:
+                logger.warning("Error processing %s: %s, skipping", wav_path, e)
                 n_skipped += 1
                 continue
 
-            # Read audio
-            audio, file_sr = sf.read(str(wav_path))
-            if audio.ndim > 1:
-                audio = audio.mean(axis=-1)  # mono
-
-            # Read F0 from .f0 file (Hz, one per line, 1 ms intervals)
-            f0_raw = np.loadtxt(str(f0_path), dtype=np.float32)
-
-            # Resample audio: 48 kHz → 16 kHz
-            if file_sr != sr:
-                import scipy.signal  # lazy import
-
-                ratio = sr / file_sr
-                new_len = int(len(audio) * ratio)
-                audio = scipy.signal.resample(audio, new_len)
-
-            # Downsample F0: 1 ms → 10 ms (take every 10th value)
-            # .f0 has 1 value per ms at original 48 kHz
-            target_frames = len(audio) // TARGET_HOP
-            f0 = np.zeros(target_frames, dtype=np.float32)
-            for t in range(target_frames):
-                src_idx = t * 10
-                if src_idx < len(f0_raw):
-                    val = f0_raw[src_idx]
-                    f0[t] = val if val >= min_f0_hz else 0.0
-
-            # Create HDF5 group
-            grp = f.create_group(f"sample_{idx:05d}")
-            grp.create_dataset(
-                "waveform",
-                data=audio.astype(np.float32),
-                compression="gzip",
-                compression_opts=3,
-            )
-            grp.create_dataset(
-                "f0",
-                data=f0.astype(np.float32),
-                compression="gzip",
-                compression_opts=3,
-            )
-            grp.create_dataset("sr", data=sr)
-            grp.create_dataset("hop", data=TARGET_HOP)
-            grp.attrs["name"] = f"{wav_path.parent.name}_{wav_path.stem}"
-
     logger.info(
         "Done: %d samples → %s (%d skipped)",
-        n_total - n_skipped,
+        len(pairs) - n_skipped,
         output_path,
         n_skipped,
     )
