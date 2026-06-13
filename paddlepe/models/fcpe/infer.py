@@ -110,7 +110,7 @@ class FCPEPE(BasePE):
             scale = self.sample_rate / sr
             new_len = int(wav.shape[-1] * scale)
             wav = paddle.nn.functional.interpolate(
-                wav.unsqueeze(0), size=new_len, mode="linear"
+                wav.unsqueeze(0), size=[new_len], mode="linear"
             ).squeeze(0)
 
         # Pad matching original MelExtractor reflect padding

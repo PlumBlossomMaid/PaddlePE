@@ -194,7 +194,7 @@ class RMVPEPE(BasePE):
             wav = (
                 F.interpolate(
                     wav.unsqueeze(-1).transpose([0, 2, 1]),
-                    size=new_len,
+                    size=[new_len],
                     mode="linear",
                 )
                 .transpose([0, 2, 1])

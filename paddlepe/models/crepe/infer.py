@@ -131,7 +131,7 @@ def _preprocess(
         new_len = int(audio.shape[0] * scale)
         audio = nn.functional.interpolate(
             audio.unsqueeze(0).unsqueeze(0),
-            size=new_len,
+            size=[new_len],
             mode="linear",
         ).squeeze()
         hop_len = int(hop_len * SAMPLE_RATE / sample_rate)
