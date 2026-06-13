@@ -67,9 +67,7 @@ class TestReadWriteF0:
     def test_write_read_without_confidence(self, tmp_dir, sample_f0):
         """Write and read .f0 file without confidence."""
         path = tmp_dir / "test_no_conf.f0"
-        write_f0(
-            path, sample_f0, confidence=None, sample_rate=16000, hop_length=160
-        )
+        write_f0(path, sample_f0, confidence=None, sample_rate=16000, hop_length=160)
         f0, conf, sr, hop = read_f0(path)
         assert np.allclose(f0, sample_f0)
         assert conf is None

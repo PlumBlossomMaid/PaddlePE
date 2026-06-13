@@ -48,9 +48,7 @@ def _download(root: str) -> None:
     try:
         from aistudio_sdk.snapshot_download import snapshot_download
 
-        logger.info(
-            "Downloading MIR-1K from AI Studio (%s) ...", AI_STUDIO_REPO
-        )
+        logger.info("Downloading MIR-1K from AI Studio (%s) ...", AI_STUDIO_REPO)
         root.mkdir(parents=True, exist_ok=True)
         res = snapshot_download(
             repo_id=AI_STUDIO_REPO,
@@ -128,9 +126,7 @@ def preprocess(
 
     # Skip if HDF5 exists and overwrite is False
     if output_path.exists() and not overwrite:
-        logger.info(
-            "HDF5 already exists: %s (use overwrite=True to redo)", output_path
-        )
+        logger.info("HDF5 already exists: %s (use overwrite=True to redo)", output_path)
         return
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -143,9 +139,7 @@ def preprocess(
         f.attrs["n_samples"] = n_total
         f.attrs["sr"] = sr
 
-        for idx, wav_path in enumerate(
-            tqdm(wav_files, desc="Preprocessing MIR-1K")
-        ):
+        for idx, wav_path in enumerate(tqdm(wav_files, desc="Preprocessing MIR-1K")):
             pv_path = wav_path.with_suffix(".pv")
             if not pv_path.exists():
                 logger.warning("Missing .pv for %s, skipping", wav_path.name)
@@ -162,7 +156,7 @@ def preprocess(
             # Read F0 annotations (.pv = MIDI notes, text file)
             with open(str(pv_path)) as pf:
                 lines = pf.readlines()
-            midi = np.array([float(l.strip()) for l in lines], dtype=np.float32)
+            midi = np.array([float(line.strip()) for line in lines], dtype=np.float32)
 
             # MIDI → Hz
             f0 = np.where(
@@ -190,9 +184,7 @@ def preprocess(
                 compression="gzip",
                 compression_opts=3,
             )
-            grp.create_dataset(
-                "f0", data=f0, compression="gzip", compression_opts=3
-            )
+            grp.create_dataset("f0", data=f0, compression="gzip", compression_opts=3)
             grp.create_dataset("sr", data=sr)
             grp.create_dataset("hop", data=160)  # MIR-1K: 10ms @ 16kHz
             grp.attrs["name"] = wav_path.stem

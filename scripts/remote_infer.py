@@ -36,7 +36,7 @@ import soundfile as sf
 _THIS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_THIS_DIR.parent))
 
-from paddlepe.io.formats import HEADER_SIZE, decode_header
+from paddlepe.io.formats import HEADER_SIZE, decode_header  # noqa: E402
 
 
 def wav_to_bytes(wav: np.ndarray, sr: int) -> bytes:
@@ -58,12 +58,17 @@ def parse_f0_bytes(data: bytes) -> tuple[np.ndarray, np.ndarray | None]:
     """Parse .f0 binary response."""
     header = decode_header(data[:HEADER_SIZE])
     f0 = np.frombuffer(
-        data, dtype=np.float32, count=header.num_frames, offset=header.header_size
+        data,
+        dtype=np.float32,
+        count=header.num_frames,
+        offset=header.header_size,
     ).copy()
     conf = None
     if header.flags & 0x01:
         conf = np.frombuffer(
-            data, dtype=np.float32, count=header.num_frames,
+            data,
+            dtype=np.float32,
+            count=header.num_frames,
             offset=header.header_size + header.num_frames * 4,
         ).copy()
     return f0, conf
@@ -81,9 +86,7 @@ def main():
     parser.add_argument(
         "--model", type=str, default="fcpe", help="模型名（需 server 已加载）"
     )
-    parser.add_argument(
-        "--threshold", type=float, default=0.05, help="有声/无声阈值"
-    )
+    parser.add_argument("--threshold", type=float, default=0.05, help="有声/无声阈值")
     args = parser.parse_args()
 
     base_url = f"http://127.0.0.1:{args.port}"
@@ -96,7 +99,10 @@ def main():
         print(f"[client] ✅ server 在线: {info}")
     except Exception as e:
         print(f"[client] ❌ 无法连接 server ({e})")
-        print(f"[client] 请先启动: start /B python -m paddlepe.server --model {args.model} --port {args.port}")
+        print(
+            f"[client] 请先启动: start /B python -m paddlepe.server "
+            f"--model {args.model} --port {args.port}"
+        )
         return
 
     # ── 加载音频 ──
@@ -118,9 +124,7 @@ def main():
         "Content-Type": "audio/wav",
         "X-Threshold": str(args.threshold),
     }
-    req = urllib.request.Request(
-        f"{base_url}/infer", data=wav_bytes, headers=headers
-    )
+    req = urllib.request.Request(f"{base_url}/infer", data=wav_bytes, headers=headers)
 
     print(f"[client] 发送推理请求 ({len(wav_bytes)} bytes)...")
     t0 = time.time()
@@ -137,7 +141,7 @@ def main():
     print(f"[client] 帧数: {len(f0)}, 有声: {valid.sum()}/{len(f0)}")
     if valid.any():
         print(f"[client] F0 范围: [{f0[valid].min():.0f}, {f0[valid].max():.0f}] Hz")
-    print(f"[client] ✅ 推理完成")
+    print("[client] ✅ 推理完成")
 
 
 if __name__ == "__main__":

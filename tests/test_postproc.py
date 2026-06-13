@@ -88,9 +88,7 @@ class TestThreshold:
         assert np.all(result >= 0)
 
     def test_silence_mask(self, sample_f0, sample_confidence):
-        loudness = np.random.uniform(-80, -20, len(sample_f0)).astype(
-            np.float32
-        )
+        loudness = np.random.uniform(-80, -20, len(sample_f0)).astype(np.float32)
         result = threshold.silence_mask(
             sample_f0, sample_confidence, loudness, threshold_db=-60
         )
@@ -107,9 +105,7 @@ class TestFilter:
 
     def test_nanmedian(self):
         assert pfilt.nanmedian(np.array([1.0, 2.0, 3.0])) == pytest.approx(2.0)
-        assert pfilt.nanmedian(np.array([1.0, np.nan, 3.0])) == pytest.approx(
-            2.0
-        )
+        assert pfilt.nanmedian(np.array([1.0, np.nan, 3.0])) == pytest.approx(2.0)
 
     def test_mean_filter(self, sample_f0):
         result = pfilt.mean_filter(sample_f0, win_length=5)
@@ -158,9 +154,7 @@ class TestConvert:
 
     def test_known_values(self):
         # A4 = 440Hz = MIDI 69
-        assert convert.hz_to_midi(np.array([440.0]))[0] == pytest.approx(
-            69.0, rel=1e-3
-        )
+        assert convert.hz_to_midi(np.array([440.0]))[0] == pytest.approx(69.0, rel=1e-3)
         # A4 = 440Hz = 0 semitones relative to 440
         st = convert.hz_to_semitones(np.array([440.0]))
         assert st[0] == pytest.approx(0.0, abs=1e-3)
@@ -177,3 +171,83 @@ class TestConvert:
         hz_back = convert.bins_to_frequency(bins)
         # Should be approximately correct
         assert np.all(np.abs(hz - hz_back) / hz < 0.3)
+
+
+class TestPipeline:
+    """Test post-processing pipeline."""
+
+    def test_get_defaults(self):
+        from paddlepe.postproc.pipeline import get_defaults
+
+        cfg = get_defaults("crepe")
+        assert cfg["median_filter"] == 3
+        assert cfg["interp_uv"] is True
+
+        cfg2 = get_defaults("rmvpe")
+        assert cfg2["median_filter"] == 0
+        assert cfg2["interp_uv"] is False
+
+    def test_postprocess_noop(self, sample_f0, sample_confidence):
+        """No post-processing should return identical results."""
+        import paddle
+
+        from paddlepe.postproc.pipeline import postprocess_f0
+
+        f0_t = paddle.to_tensor(sample_f0)
+        conf_t = paddle.to_tensor(sample_confidence)
+        f0_out, conf_out = postprocess_f0(f0_t, conf_t)
+        assert f0_out.shape == f0_t.shape
+        assert conf_out.shape == conf_t.shape
+
+    def test_postprocess_threshold(self, sample_f0, sample_confidence):
+        import paddle
+
+        from paddlepe.postproc.pipeline import postprocess_f0
+
+        f0_t = paddle.to_tensor(sample_f0)
+        conf_t = paddle.to_tensor(sample_confidence)
+        f0_out, _ = postprocess_f0(f0_t, conf_t, threshold=0.5, threshold_mode="fixed")
+        f0_np = f0_out.numpy()
+        # Frames with confidence < 0.5 should be zeroed
+        low_conf = sample_confidence < 0.5
+        assert np.all(f0_np[low_conf] == 0.0)
+
+    def test_postprocess_median_filter(self, sample_f0, sample_confidence):
+        import paddle
+
+        from paddlepe.postproc.pipeline import postprocess_f0
+
+        f0_t = paddle.to_tensor(sample_f0)
+        conf_t = paddle.to_tensor(sample_confidence)
+        f0_out, _ = postprocess_f0(f0_t, conf_t, median_filter=3)
+        f0_np = f0_out.numpy()
+        assert f0_np.shape == sample_f0.shape
+        # Median filter should smooth but preserve overall shape
+        # Just check it doesn't crash and returns valid output
+        assert not np.any(np.isnan(f0_np))
+
+    def test_postprocess_interp_uv(self, sample_f0, sample_confidence):
+        import paddle
+
+        from paddlepe.postproc.pipeline import postprocess_f0
+
+        f0_t = paddle.to_tensor(sample_f0)
+        conf_t = paddle.to_tensor(sample_confidence)
+        f0_out, _ = postprocess_f0(f0_t, conf_t, interp_uv=True)
+        f0_np = f0_out.numpy()
+        # All frames should be > 0 after interpolation
+        assert np.all(f0_np > 0)
+
+    def test_postprocess_full_crepe_defaults(self, sample_f0, sample_confidence):
+        """Simulate CREPE defaults: threshold + median + interp."""
+        import paddle
+
+        from paddlepe.postproc.pipeline import get_defaults, postprocess_f0
+
+        cfg = get_defaults("crepe")
+        f0_t = paddle.to_tensor(sample_f0)
+        conf_t = paddle.to_tensor(sample_confidence)
+        f0_out, _ = postprocess_f0(f0_t, conf_t, **cfg)
+        f0_np = f0_out.numpy()
+        assert f0_np.shape == sample_f0.shape
+        assert not np.any(np.isnan(f0_np))

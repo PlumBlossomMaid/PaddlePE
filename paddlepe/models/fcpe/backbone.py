@@ -53,9 +53,7 @@ class MelConformerF0(nn.Layer):
             atten_dropout=atten_dropout,
         )
         self.norm = nn.LayerNorm(hidden_dims)
-        self.output_proj = weight_norm(
-            nn.Linear(hidden_dims, out_dims), "weight", 1
-        )
+        self.output_proj = weight_norm(nn.Linear(hidden_dims, out_dims), "weight", 1)
         cent_min = float(1200.0 * np.log2(f0_min / 10.0))
         cent_max = float(1200.0 * np.log2(f0_max / 10.0))
         self.register_buffer(
@@ -78,9 +76,7 @@ class MelConformerF0(nn.Layer):
         # Input stack: (B, T, C) → transpose → (B, C, T)
         # → conv1d → transpose → (B, T, C)
         x = self.input_stack[0](x.transpose([0, 2, 1]))  # Conv1D: (B, C, T)
-        x = self.input_stack[1](x.unsqueeze(-2)).squeeze(
-            -2
-        )  # GroupNorm: need 4D
+        x = self.input_stack[1](x.unsqueeze(-2)).squeeze(-2)  # GroupNorm: need 4D
         x = self.input_stack[2](x)  # LeakyReLU
         x = self.input_stack[3](x)  # Conv1D
         x = x.transpose([0, 2, 1])  # (B, T, C) for Conformer

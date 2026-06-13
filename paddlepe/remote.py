@@ -12,6 +12,7 @@ from __future__ import annotations
 import io
 import json
 import socket
+import subprocess  # noqa: TC003
 import sys
 import time
 from typing import Any
@@ -130,17 +131,14 @@ class RemotePE:
         if not _wait_for_server(self._base_url, timeout=60.0):
             self._process.kill()
             raise RuntimeError(
-                f"paddlePE server failed to start on port {port} "
-                f"within 60 seconds."
+                f"paddlePE server failed to start on port {port} within 60 seconds."
             )
 
     def _load_model(self):
         """Load model on server."""
         import urllib.request
 
-        data = json.dumps(
-            {"model": self._model_name, "ckpt": self._ckpt}
-        ).encode()
+        data = json.dumps({"model": self._model_name, "ckpt": self._ckpt}).encode()
         req = urllib.request.Request(
             f"{self._base_url}/load",
             data=data,

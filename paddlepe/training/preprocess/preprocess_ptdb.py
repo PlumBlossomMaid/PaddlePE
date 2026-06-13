@@ -69,7 +69,7 @@ def _collect_pairs(speech_dir: Path) -> list[tuple[Path, Path]]:
         stem = wav_path.stem  # e.g. "lar_F01_sa1"
         # Build expected .f0 path: replace "lar_" with "ref_", REF not LAR
         f0_stem = stem.replace("lar_", "ref_", 1)
-        # Navigate: go up to speaker dir, then up to LAR/, sibling REF/, then speaker dir
+        # Navigate: go up to speaker dir, then up to LAR/, sibling REF/, then speaker dir  # noqa: E501
         # Path: .../LAR/F01/lar_F01_sa1.wav → .../REF/F01/ref_F01_sa1.f0
         speaker_dir = wav_path.parent  # .../LAR/F01
         ref_dir = speaker_dir.parent.parent / "REF" / speaker_dir.name
@@ -108,9 +108,7 @@ def preprocess(
     output_path = Path(output_path)
 
     if output_path.exists() and not overwrite:
-        logger.info(
-            "HDF5 already exists: %s (use overwrite=True to redo)", output_path
-        )
+        logger.info("HDF5 already exists: %s (use overwrite=True to redo)", output_path)
         return
 
     # Extract zip if needed
@@ -120,9 +118,7 @@ def preprocess(
         root / "SPEECH_DATA",
         root,
     ]
-    is_extracted = any(
-        c.exists() and any(c.iterdir()) for c in speech_dir_candidates
-    )
+    is_extracted = any(c.exists() and any(c.iterdir()) for c in speech_dir_candidates)
 
     if not is_extracted and zip_path.exists() and auto_extract:
         logger.info("Extracting %s ...", zip_path.name)
@@ -135,9 +131,7 @@ def preprocess(
     # Collect (wav, f0) pairs
     pairs = _collect_pairs(speech_dir)
     if not pairs:
-        raise FileNotFoundError(
-            f"No valid wav-f0 pairs found under {speech_dir}."
-        )
+        raise FileNotFoundError(f"No valid wav-f0 pairs found under {speech_dir}.")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     n_skipped = 0
@@ -163,9 +157,7 @@ def preprocess(
                 elif f0_raw.ndim == 1:
                     f0_hz = f0_raw
                 else:
-                    logger.warning(
-                        "Unexpected F0 format in %s, skipping", f0_path
-                    )
+                    logger.warning("Unexpected F0 format in %s, skipping", f0_path)
                     n_skipped += 1
                     continue
 

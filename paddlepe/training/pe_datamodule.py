@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import paddle
 from paddle.io import ConcatDataset, DataLoader
@@ -35,10 +35,7 @@ from paddlepe.training.hdf5_dataset import HDF5Dataset
 
 logger = logging.getLogger(__name__)
 
-DatasetConfig = Union[
-    str,  # just a path
-    dict[str, Any],  # {"path": ..., "weight": ...}
-]
+DatasetConfig = str | dict[str, Any]
 
 
 def _resolve_config(
@@ -135,13 +132,12 @@ class PEDataModule:
             min_f0 = 40.0  # default
             # Check if per-dataset config has min_f0_hz override
             cfg = self.datasets.get(
-                [
+                next(
                     k
                     for k, v in self.datasets.items()
-                    if isinstance(v, dict)
-                    and v.get("path") == ds_path
+                    if (isinstance(v, dict) and v.get("path") == ds_path)
                     or v == ds_path
-                ][0]
+                )
             )
             if isinstance(cfg, dict) and "min_f0_hz" in cfg:
                 min_f0 = cfg["min_f0_hz"]
@@ -158,13 +154,9 @@ class PEDataModule:
                 train_subs.append(paddle.io.Subset(ds, list(range(n - n_val))))
                 val_subs.append(paddle.io.Subset(ds, list(range(n - n_val, n))))
             self._train_ds = (
-                ConcatDataset(train_subs)
-                if len(train_subs) > 1
-                else train_subs[0]
+                ConcatDataset(train_subs) if len(train_subs) > 1 else train_subs[0]
             )
-            self._val_ds = (
-                ConcatDataset(val_subs) if len(val_subs) > 1 else val_subs[0]
-            )
+            self._val_ds = ConcatDataset(val_subs) if len(val_subs) > 1 else val_subs[0]
         else:
             self._train_ds = (
                 ConcatDataset(all_datasets)

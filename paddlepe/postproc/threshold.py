@@ -5,9 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 
-def threshold_at(
-    f0: np.ndarray, confidence: np.ndarray, value: float
-) -> np.ndarray:
+def threshold_at(f0: np.ndarray, confidence: np.ndarray, value: float) -> np.ndarray:
     """Fixed threshold: frames with confidence < value are set to 0.
 
     Args:

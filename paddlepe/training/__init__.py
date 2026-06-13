@@ -14,8 +14,12 @@ from paddle import nn  # noqa: E402
 
 from paddlepe.training.hdf5_dataset import HDF5Dataset  # noqa: E402
 from paddlepe.training.pe_datamodule import PEDataModule  # noqa: E402
-from paddlepe.training import collators  # noqa: E402
-from paddlepe.training import samplers  # noqa: E402
+
+__all__ = [
+    "HDF5Dataset",
+    "PEDataModule",
+    "PETask",
+]
 
 
 class PETask(nn.Layer):

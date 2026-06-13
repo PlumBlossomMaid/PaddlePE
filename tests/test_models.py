@@ -102,9 +102,7 @@ class TestRMVPEBackbone:
 
         mel = paddle.randn([1, 128, 20])
         out = model(mel)
-        assert out.place.is_gpu_place() or isinstance(
-            out.place, paddle.CPUPlace
-        )
+        assert out.place.is_gpu_place() or isinstance(out.place, paddle.CPUPlace)
 
 
 class TestFCPEPE:

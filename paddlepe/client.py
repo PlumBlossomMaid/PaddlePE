@@ -49,9 +49,7 @@ class ClientPE:
 
         temp = RemotePE(model="fcpe", auto_shutdown=True)
         try:
-            resp = urllib.request.urlopen(
-                f"{temp._base_url}/models", timeout=10
-            )
+            resp = urllib.request.urlopen(f"{temp._base_url}/models", timeout=10)
             return list(json.loads(resp.read()).get("models", []))
         finally:
             temp.__del__()

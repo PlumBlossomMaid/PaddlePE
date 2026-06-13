@@ -58,8 +58,7 @@ def look_around(x, backward=1, forward=0, pad_value=-1, dim=2):
     dims = (len(x.shape) - dim) * (0, 0)
     padded_x = F.pad(x, (*dims, backward, forward), value=pad_value)
     tensors = [
-        padded_x[:, ind : (ind + t), ...]
-        for ind in range(forward + backward + 1)
+        padded_x[:, ind : (ind + t), ...] for ind in range(forward + backward + 1)
     ]
     return paddle.concat(tensors, axis=dim)
 
@@ -87,9 +86,7 @@ class LocalAttention(nn.Layer):
     ):
         super().__init__()
         look_forward = default(look_forward, 0 if causal else 1)
-        assert not (causal and look_forward > 0), (
-            'you cannot look forward if causal'
-        )
+        assert not (causal and look_forward > 0), 'you cannot look forward if causal'
 
         self.scale = scale
 
@@ -163,9 +160,7 @@ class LocalAttention(nn.Layer):
 
         # https://github.com/arogozhnikov/einops/blob/master/
         # docs/4-pack-and-unpack.ipynb
-        (q, packed_shape), (k, _), (v, _) = (
-            pack([t], '* n d') for t in (q, k, v)
-        )
+        (q, packed_shape), (k, _), (v, _) = (pack([t], '* n d') for t in (q, k, v))
 
         # auto padding
 
@@ -246,9 +241,7 @@ class LocalAttention(nn.Layer):
 
             if self.exact_windowsize:
                 max_causal_window_size = self.window_size * self.look_backward
-                causal_mask = causal_mask | (
-                    bq_t > (bq_k + max_causal_window_size)
-                )
+                causal_mask = causal_mask | (bq_t > (bq_k + max_causal_window_size))
 
             sim = sim.masked_fill(causal_mask, mask_value)
             del causal_mask
@@ -277,16 +270,10 @@ class LocalAttention(nn.Layer):
             h = b // mask.shape[0]
 
             if autopad:
-                _, mask = pad_to_multiple(
-                    mask, window_size, dim=-1, value=False
-                )
+                _, mask = pad_to_multiple(mask, window_size, dim=-1, value=False)
 
-            mask = rearrange(
-                mask, '... (w n) -> (...) w n', w=windows, n=window_size
-            )
-            mask = look_around(
-                mask, **{**look_around_kwargs, 'pad_value': False}
-            )
+            mask = rearrange(mask, '... (w n) -> (...) w n', w=windows, n=window_size)
+            mask = look_around(mask, **{**look_around_kwargs, 'pad_value': False})
             mask = rearrange(mask, '... j -> ... 1 j')
             mask = repeat(mask, 'b ... -> (b h) ...', h=h)
             sim = sim.masked_fill(~mask, mask_value)

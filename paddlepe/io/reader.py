@@ -26,9 +26,7 @@ def read_f0(path: str | Path) -> tuple[np.ndarray, np.ndarray | None, int, int]:
     dtype = np.dtype("<f4")
 
     # Read f0
-    f0 = np.frombuffer(
-        data, dtype=dtype, count=header.num_frames, offset=offset
-    ).copy()
+    f0 = np.frombuffer(data, dtype=dtype, count=header.num_frames, offset=offset).copy()
     offset += header.num_frames * 4
 
     # Read confidence if present
@@ -76,9 +74,7 @@ def read_csv(
                 confs.append(float(row[2]))
 
     f0 = np.array(f0s, dtype=np.float32)
-    confidence = (
-        np.array(confs, dtype=np.float32) if has_conf and confs else None
-    )
+    confidence = np.array(confs, dtype=np.float32) if has_conf and confs else None
     # Infer sample_rate and hop_length from timestamps
     if len(times) >= 2:
         hop_sec = times[1] - times[0]

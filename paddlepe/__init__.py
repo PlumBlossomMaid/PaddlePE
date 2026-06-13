@@ -19,8 +19,8 @@ try:
 except (OSError, ImportError) as e:
     _PADDLE_AVAILABLE = False
     warn_once(
-        "PaddlePaddle import failed (%s). "
-        "paddlePE runs in client-only mode (subprocess server)." % e,
+        f"PaddlePaddle import failed ({e}). "
+        "paddlePE runs in client-only mode (subprocess server).",
         key="paddle_unavailable",
     )
 

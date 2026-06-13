@@ -192,25 +192,30 @@ class PennPE(BasePE):
         wav: paddle.Tensor,
         sr: int,
         decoder: str = "argmax",
-        threshold: float = 0.0,
-        interp_uv: bool = False,
+        threshold: float | None = None,
+        interp_uv: bool | None = None,
+        median_filter: int | None = None,
         **kwargs,
     ) -> tuple[paddle.Tensor, paddle.Tensor | None]:
         """Infer F0 from audio waveform.
 
-        Pipeline: preprocess -> forward -> decode -> (f0_hz, confidence)
+        Pipeline: preprocess -> forward -> decode -> postprocess
 
         Args:
             wav: (S,) or (1, S) float32 audio
             sr: sample rate in Hz
-            decoder: only 'argmax' is supported
-            threshold: confidence below this is set to 0 (unvoiced)
-            interp_uv: interpolate unvoiced frames
+            decoder: only ``"argmax"`` is supported
+            threshold: confidence threshold.  ``None`` = model default.
+            interp_uv: interpolate unvoiced frames.  ``None`` = model default.
+            median_filter: median filter kernel size.  ``None`` = model default.
+            **kwargs: overrides for :func:`postprocess_f0`.
 
         Returns:
             f0_hz: (T,) float32, 0 = unvoiced
             confidence: (T,) float32
         """
+        from paddlepe.postproc.pipeline import get_defaults, postprocess_f0
+
         wav = self._to_tensor(wav)
         wav = wav.squeeze()
         if wav.ndim == 0:
@@ -229,22 +234,26 @@ class PennPE(BasePE):
         f0_hz, confidence = _decode_argmax(logits)
 
         # Apply threshold
-        if threshold > 0.0:
-            mask = confidence < threshold
+        _th = threshold if threshold is not None else 0.01
+        if _th > 0.0:
+            mask = confidence < _th
             f0_hz = paddle.where(mask, paddle.zeros_like(f0_hz), f0_hz)
 
-        # Interpolate unvoiced frames
-        if interp_uv:
-            from paddlepe.postproc.filter import interpolate_uv as iuv
+        # Apply post-processing pipeline
+        cfg = get_defaults("penn")
+        cfg["interp_uv"] = interp_uv if interp_uv is not None else cfg["interp_uv"]
+        cfg["median_filter"] = (
+            median_filter if median_filter is not None else cfg["median_filter"]
+        )
+        cfg["threshold"] = None  # we already applied threshold above
+        cfg.update(kwargs)
 
-            f0_np = f0_hz.numpy()
-            uv = f0_np <= 0
-            if uv.any():
-                f0_np = iuv(f0_np, uv)
-                f0_hz = paddle.to_tensor(f0_np)
+        f0_hz, confidence = postprocess_f0(f0_hz, confidence, **cfg)
 
         return f0_hz, confidence
 
+    # ------------------------------------------------------------------
+    # Checkpoint helpers
     # ------------------------------------------------------------------
     # Checkpoint helpers
     # ------------------------------------------------------------------
@@ -252,7 +261,5 @@ class PennPE(BasePE):
     def default_ckpt(cls) -> str:
         """Path to default checkpoint."""
         return str(
-            Path(__file__).parent.parent.parent.parent
-            / "ckpts"
-            / "penn.pdparams"
+            Path(__file__).parent.parent.parent.parent / "ckpts" / "penn.pdparams"
         )

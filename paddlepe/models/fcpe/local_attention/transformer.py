@@ -112,8 +112,7 @@ class LocalMHA(nn.Layer):
 
         q, k, v = self.to_qkv(x).chunk(3, dim=-1)
         q, k, v = (
-            rearrange(t, 'b n (h d) -> b h n d', h=self.heads)
-            for t in (q, k, v)
+            rearrange(t, 'b n (h d) -> b h n d', h=self.heads) for t in (q, k, v)
         )
 
         if self.qk_rmsnorm:
@@ -222,9 +221,7 @@ class LocalTransformer(nn.Layer):
         self.local_attn_window_size = local_attn_window_size
         self.dynamic_pos_bias = None
         if use_dynamic_pos_bias:
-            self.dynamic_pos_bias = DynamicPositionBias(
-                dim=dim // 2, heads=heads
-            )
+            self.dynamic_pos_bias = DynamicPositionBias(dim=dim // 2, heads=heads)
 
         for _ in range(depth):
             self.layers.append(
@@ -255,9 +252,7 @@ class LocalTransformer(nn.Layer):
 
     @paddle.no_grad()
     @eval_decorator
-    def generate(
-        self, prime, seq_len, temperature=1.0, filter_thres=0.9, **kwargs
-    ):
+    def generate(self, prime, seq_len, temperature=1.0, filter_thres=0.9, **kwargs):
         n, _device = prime.shape[1], prime.device
 
         out = prime

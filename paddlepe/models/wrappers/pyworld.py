@@ -101,15 +101,11 @@ class WorldPE(BasePE):
                 wav_np, sr, frame_period=frame_period, **kwargs
             )
         elif method == "dio":
-            f0_np, t_np = pyworld.dio(
-                wav_np, sr, frame_period=frame_period, **kwargs
-            )
+            f0_np, t_np = pyworld.dio(wav_np, sr, frame_period=frame_period, **kwargs)
             # Apply Stonemask refinement for DIO (standard practice)
             f0_np = pyworld.stonemask(wav_np, f0_np, t_np, sr)
         else:
-            raise ValueError(
-                f"Unknown method: {method}. Supported: 'harvest', 'dio'"
-            )
+            raise ValueError(f"Unknown method: {method}. Supported: 'harvest', 'dio'")
 
         # Build confidence from unvoiced flag
         # pyworld marks unvoiced frames as 0.0

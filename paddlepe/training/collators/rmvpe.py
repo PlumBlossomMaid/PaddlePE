@@ -86,9 +86,7 @@ class RMVPECollator(BaseCollator):
             )
         return self._hann[key]
 
-    def _wav_to_mel(
-        self, wav: paddle.Tensor, sample_rate: int
-    ) -> paddle.Tensor:
+    def _wav_to_mel(self, wav: paddle.Tensor, sample_rate: int) -> paddle.Tensor:
         """Convert (S,) waveform → (n_mels, T) log-Mel at training resolution."""
         if wav.ndim == 1:
             wav = wav.unsqueeze(0)
@@ -184,17 +182,13 @@ class RMVPECollator(BaseCollator):
                     f0_np,
                 ).astype(np.float32)
                 nearest = np.clip(
-                    np.round(np.arange(T_mel) * self.hop_length / hop).astype(
-                        int
-                    ),
+                    np.round(np.arange(T_mel) * self.hop_length / hop).astype(int),
                     0,
                     len(f0_np) - 1,
                 )
                 f0_aligned[f0_np[nearest] == 0] = 0.0
             else:
-                f0_aligned = np.pad(f0_np, (0, max(0, T_mel - len(f0_np))))[
-                    :T_mel
-                ]
+                f0_aligned = np.pad(f0_np, (0, max(0, T_mel - len(f0_np))))[:T_mel]
 
             label = self._hz_to_gaussian_label(f0_aligned, T_mel)
 

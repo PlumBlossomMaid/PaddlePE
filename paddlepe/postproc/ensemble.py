@@ -28,9 +28,7 @@ def ensemble_f0(
     uv_penalty_sq = uv_penalty * uv_penalty
 
     # Convert all F0s to the same note space
-    shift_factors = 2.0 ** (
-        np.array(key_shifts, dtype=np.float64) / 12.0
-    )  # (K,)
+    shift_factors = 2.0 ** (np.array(key_shifts, dtype=np.float64) / 12.0)  # (K,)
     f0s_aligned = f0s / shift_factors[None, :]  # (T, K)
 
     # Convert to note (MIDI-like)

@@ -71,9 +71,7 @@ class FCPECollator(BaseCollator):
         )
         return paddle.to_tensor(mel_basis, dtype=paddle.float32)
 
-    def _wav_to_mel(
-        self, wav: paddle.Tensor, sample_rate: int
-    ) -> paddle.Tensor:
+    def _wav_to_mel(self, wav: paddle.Tensor, sample_rate: int) -> paddle.Tensor:
         """Convert (S,) waveform → (n_mels, T) log-Mel."""
         if wav.ndim == 1:
             wav = wav.unsqueeze(0)
@@ -149,17 +147,13 @@ class FCPECollator(BaseCollator):
                     f0_np,
                 ).astype(np.float32)
                 nearest = np.clip(
-                    np.round(np.arange(T_mel) * self.hop_length / hop).astype(
-                        int
-                    ),
+                    np.round(np.arange(T_mel) * self.hop_length / hop).astype(int),
                     0,
                     len(f0_np) - 1,
                 )
                 f0_aligned[f0_np[nearest] == 0] = 0.0
             else:
-                f0_aligned = np.pad(f0_np, (0, max(0, T_mel - len(f0_np))))[
-                    :T_mel
-                ]
+                f0_aligned = np.pad(f0_np, (0, max(0, T_mel - len(f0_np))))[:T_mel]
 
             label = self._hz_to_gaussian_label(f0_aligned, T_mel)
             mel_list.append(mel)
@@ -174,11 +168,13 @@ class FCPECollator(BaseCollator):
             if T < max_T:
                 pad = max_T - T
                 mel_list[i] = paddle.nn.functional.pad(
-                    mel_list[i], [0, pad, 0, 0],
+                    mel_list[i],
+                    [0, pad, 0, 0],
                     mode="constant",
                 )
                 label_list[i] = paddle.nn.functional.pad(
-                    label_list[i], [0, pad, 0, 0],
+                    label_list[i],
+                    [0, pad, 0, 0],
                     mode="constant",
                     value=0.0,
                 )

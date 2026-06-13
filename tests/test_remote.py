@@ -85,9 +85,7 @@ class TestRemotePE:
 
         assert isinstance(pe, RemotePE)
         f0, conf = pe.infer(
-            np.sin(np.linspace(0, 2 * np.pi * 440, 16000 // 100)).astype(
-                np.float32
-            ),
+            np.sin(np.linspace(0, 2 * np.pi * 440, 16000 // 100)).astype(np.float32),
             16000,
         )
         assert len(f0) > 0

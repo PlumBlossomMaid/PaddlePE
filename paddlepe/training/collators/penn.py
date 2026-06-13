@@ -88,8 +88,6 @@ class PENNCollator(BaseCollator):
                 f0_aligned = f0_np[:T]
 
             frame_list.append(frames)
-            f0_list.append(
-                paddle.to_tensor(f0_aligned[:T], dtype=paddle.float32)
-            )
+            f0_list.append(paddle.to_tensor(f0_aligned[:T], dtype=paddle.float32))
 
         return paddle.stack(frame_list), paddle.stack(f0_list)

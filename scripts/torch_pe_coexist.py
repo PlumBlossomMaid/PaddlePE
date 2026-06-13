@@ -18,7 +18,7 @@ sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 print("=" * 60)
 print("  Step 1/3: 导入 torch")
 print("=" * 60)
-import torch
+import torch  # noqa: E402
 
 print(f"  torch {torch.__version__}, CUDA: {torch.cuda.is_available()}")
 if torch.cuda.is_available():
@@ -29,7 +29,7 @@ if torch.cuda.is_available():
 print("\n" + "=" * 60)
 print("  Step 2/3: 导入 paddlepe")
 print("=" * 60)
-from paddlepe import PE
+from paddlepe import PE  # noqa: E402
 
 print(f"  可用模型: {PE.list_models()}")
 
@@ -37,8 +37,8 @@ print(f"  可用模型: {PE.list_models()}")
 print("\n" + "=" * 60)
 print("  Step 3/3: FCPE 推理测试")
 print("=" * 60)
-import numpy as np
-import soundfile as sf
+import numpy as np  # noqa: E402
+import soundfile as sf  # noqa: E402
 
 wav_path = os.path.join(_ROOT, "体验", "标准歌声.flac")
 wav, sr = sf.read(wav_path, dtype="float32")

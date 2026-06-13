@@ -36,13 +36,13 @@ include = ["paddlepe*"]
 
 [tool.ruff]
 exclude = [".git", "__pycache__", "ckpts"]
-line-length = 80
+line-length = 88
 target-version = "py310"
 
 [tool.ruff.format]
 quote-style = "preserve"
 docstring-code-format = true
-docstring-code-line-length = 80
+docstring-code-line-length = 88
 
 [tool.ruff.lint]
 select = [

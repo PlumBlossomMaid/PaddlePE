@@ -142,11 +142,7 @@ class ConformerConvModule(nn.Layer):
         super().__init__()
 
         inner_dim = dim * expansion_factor
-        padding = (
-            calc_same_padding(kernel_size)
-            if not causal
-            else (kernel_size - 1, 0)
-        )
+        padding = calc_same_padding(kernel_size) if not causal else (kernel_size - 1, 0)
 
         self.net = nn.Sequential(
             nn.LayerNorm(dim),
@@ -233,9 +229,7 @@ class SelfAttention(nn.Layer):
         use_norm=False,
     ):
         super().__init__()
-        assert dim % heads == 0, (
-            'dimension must be divisible by number of heads'
-        )
+        assert dim % heads == 0, 'dimension must be divisible by number of heads'
         dim_head = default(dim_head, dim // heads)
         inner_dim = dim_head * heads
         self.fast_attention = FastAttention(
@@ -295,9 +289,7 @@ class SelfAttention(nn.Layer):
         cross_attend = exists(context)
 
         context = default(context, x)
-        context_mask = (
-            default(context_mask, mask) if not cross_attend else context_mask
-        )
+        context_mask = default(context_mask, mask) if not cross_attend else context_mask
         # print (torch.sum(self.name_embedding))
         q, k, v = self.to_q(x), self.to_k(context), self.to_v(context)
 
@@ -420,9 +412,7 @@ class FastAttention(nn.Layer):
             )
             q, k = map(create_kernel, (q, k))
             '''
-            raise NotImplementedError(
-                'generalized attention not implemented yet'
-            )
+            raise NotImplementedError('generalized attention not implemented yet')
 
         else:
             create_kernel = partial(
@@ -453,8 +443,7 @@ def linear_attention(q, k, v):
         k_cumsum = k.sum(axis=-2)
         # k_cumsum = k.sum(dim = -2)
         D_inv = 1.0 / (
-            paddle.einsum('...nd,...d->...n', q, k_cumsum.astype(q.dtype))
-            + 1e-8
+            paddle.einsum('...nd,...d->...n', q, k_cumsum.astype(q.dtype)) + 1e-8
         )
 
         context = paddle.einsum('...nd,...ne->...de', k, v)
@@ -500,9 +489,7 @@ def softmax_kernel(
     if is_query:
         data_dash = ratio * (
             paddle.exp(
-                data_dash
-                - diag_data
-                - paddle.max(data_dash, axis=-1, keepdim=True)
+                data_dash - diag_data - paddle.max(data_dash, axis=-1, keepdim=True)
             )
             + eps
         )  # paddle.max(data_dash, axis=-1, keepdim=True).values) + eps)

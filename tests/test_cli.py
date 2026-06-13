@@ -35,13 +35,9 @@ class TestCLI:
 
     def test_nonexistent_file(self, tmp_dir):
         """Running with nonexistent file shows error."""
-        result = _run_paddlepe(
-            "/nonexistent/file.wav", "-o", str(tmp_dir / "out.f0")
-        )
+        result = _run_paddlepe("/nonexistent/file.wav", "-o", str(tmp_dir / "out.f0"))
         assert result.returncode != 0
-        assert (
-            "not found" in result.stderr or "not found" in result.stdout.lower()
-        )
+        assert "not found" in result.stderr or "not found" in result.stdout.lower()
 
     def test_f0_to_csv_convert(self, tmp_dir, sample_f0):
         """Convert .f0 to .csv."""

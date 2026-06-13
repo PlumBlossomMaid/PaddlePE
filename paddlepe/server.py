@@ -119,9 +119,7 @@ class _PitchHandler(BaseHTTPRequestHandler):
 
         elif self.path == "/infer":
             if _MODEL is None:
-                self._send_json(
-                    400, {"error": "no model loaded, call /load first"}
-                )
+                self._send_json(400, {"error": "no model loaded, call /load first"})
                 return
 
             # Read raw WAV bytes
@@ -138,13 +136,10 @@ class _PitchHandler(BaseHTTPRequestHandler):
                     n_frames = wf.getnframes()
                     raw = wf.readframes(n_frames)
                     wav_np = (
-                        np.frombuffer(raw, dtype=np.int16).astype(np.float32)
-                        / 32768.0
+                        np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
                     )
                     if n_channels > 1:
-                        wav_np = wav_np.reshape(-1, n_channels).mean(
-                            axis=1
-                        )  # mono
+                        wav_np = wav_np.reshape(-1, n_channels).mean(axis=1)  # mono
             except Exception:
                 # Fallback: treat as raw PCM
                 wav_np = (
@@ -160,12 +155,11 @@ class _PitchHandler(BaseHTTPRequestHandler):
             if self.headers.get("X-Threshold"):
                 params["threshold"] = float(self.headers["X-Threshold"])
             if self.headers.get("X-Interp-UV"):
-                params["interp_uv"] = (
-                    self.headers["X-Interp-UV"].lower() == "true"
-                )
+                params["interp_uv"] = self.headers["X-Interp-UV"].lower() == "true"
+
+            import time as _time
 
             import paddle
-            import time as _time
 
             duration = len(wav_np) / sr
             _t0 = _time.time()
@@ -230,7 +224,10 @@ def run_server(
     _SERVER = HTTPServer(("127.0.0.1", port), _PitchHandler)
     model_info = f"model={model}" if model else "no-preload mode"
     print(f"[paddlePE server] listening on http://127.0.0.1:{port} ({model_info})")
-    print(f"[paddlePE server] endpoints: GET /health, GET /models, POST /load, POST /infer, POST /shutdown")
+    print(
+        "[paddlePE server] endpoints: GET /health, GET /models, "
+        "POST /load, POST /infer, POST /shutdown"
+    )
     _SERVER.serve_forever()
 
 
@@ -245,9 +242,7 @@ def main():
         help="Start without preloading a model. Use /load later.",
     )
     args = parser.parse_args()
-    run_server(
-        args.model, args.port, args.ckpt, no_preload=args.no_preload
-    )
+    run_server(args.model, args.port, args.ckpt, no_preload=args.no_preload)
 
 
 if __name__ == "__main__":

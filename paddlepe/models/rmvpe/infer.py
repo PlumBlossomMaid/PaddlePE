@@ -61,12 +61,23 @@ class MelSpectrogram(nn.Layer):
         # Build mel filterbank using librosa with htk=True (matching reference)
         if librosa_mel_fn is not None:
             mel_basis = librosa_mel_fn(
-                sr=sr, n_fft=n_fft, n_mels=n_mels, fmin=mel_fmin, fmax=mel_fmax, htk=True
+                sr=sr,
+                n_fft=n_fft,
+                n_mels=n_mels,
+                fmin=mel_fmin,
+                fmax=mel_fmax,
+                htk=True,
             )
         else:
             # Fallback: triangular mel
-            mel_basis = self._create_mel_filterbank(n_fft // 2 + 1, sr, n_mels, mel_fmin, mel_fmax)
-        self.register_buffer("mel_basis", paddle.to_tensor(mel_basis, dtype="float32"), persistable=True)
+            mel_basis = self._create_mel_filterbank(
+                n_fft // 2 + 1, sr, n_mels, mel_fmin, mel_fmax
+            )
+        self.register_buffer(
+            "mel_basis",
+            paddle.to_tensor(mel_basis, dtype="float32"),
+            persistable=True,
+        )
 
         # Hann window
         self.hann_window = paddle.audio.functional.get_window(
@@ -88,7 +99,9 @@ class MelSpectrogram(nn.Layer):
             idx_left = (freq_bins >= left) & (freq_bins < center)
             filters[i - 1, idx_left] = (freq_bins[idx_left] - left) / (center - left)
             idx_right = (freq_bins >= center) & (freq_bins <= right)
-            filters[i - 1, idx_right] = (right - freq_bins[idx_right]) / (right - center)
+            filters[i - 1, idx_right] = (right - freq_bins[idx_right]) / (
+                right - center
+            )
         return filters
 
     def forward(self, audio, center=True):
@@ -145,7 +158,9 @@ class RMVPEPE(BasePE):
 
         self.backbone = RMVPEUNet(n_blocks=n_blocks, n_gru=n_gru)
         self.mel_extractor = MelSpectrogram(
-            n_mels=N_MELS, sr=sample_rate, hop_length=hop_length,
+            n_mels=N_MELS,
+            sr=sample_rate,
+            hop_length=hop_length,
         )
 
     def forward(self, mel: paddle.Tensor) -> paddle.Tensor:
@@ -164,9 +179,10 @@ class RMVPEPE(BasePE):
         self,
         wav: paddle.Tensor,
         sr: int,
-        threshold: float = 0.03,
+        threshold: float | None = None,
         use_viterbi: bool = False,
-        interp_uv: bool = False,
+        interp_uv: bool | None = None,
+        median_filter: int | None = None,
         **kwargs,
     ) -> tuple[paddle.Tensor, paddle.Tensor | None]:
         """Infer F0 from audio.
@@ -174,13 +190,17 @@ class RMVPEPE(BasePE):
         Args:
             wav: (S,) or (1, S) float32 audio
             sr: sample rate
-            threshold: UV confidence threshold (reference default 0.03)
+            threshold: UV confidence threshold.  ``None`` = model default.
             use_viterbi: use Viterbi decoding
-            interp_uv: interpolate unvoiced frames
+            interp_uv: interpolate unvoiced frames.  ``None`` = model default.
+            median_filter: median filter kernel size.  ``None`` = model default.
+            **kwargs: overrides for :func:`postprocess_f0`.
 
         Returns:
             (f0_hz, confidence)
         """
+        from paddlepe.postproc.pipeline import get_defaults, postprocess_f0
+
         wav = self._to_tensor(wav)
         if wav.ndim == 1:
             wav = wav.unsqueeze(0)
@@ -215,22 +235,25 @@ class RMVPEPE(BasePE):
         logits = logits[:, :n_frames, :]  # (B, n_frames, N_CLASS)
 
         # Decode — matching reference to_local_average_f0
-        f0 = self._decode_local_average(logits, threshold)
+        _th = threshold if threshold is not None else 0.03
+        f0 = self._decode_local_average(logits, _th)
 
         if use_viterbi:
-            f0 = self._decode_viterbi(logits, f0, threshold)
+            f0 = self._decode_viterbi(logits, f0, _th)
 
         f0 = f0.squeeze(0)  # (T,)
         confidence = paddle.max(logits.squeeze(0), axis=-1)  # (T,)
 
-        if interp_uv:
-            f0_np = f0.numpy()
-            uv = f0_np <= 0
-            if uv.any():
-                from paddlepe.postproc.filter import interpolate_uv as iuv
+        # Apply post-processing pipeline (threshold already handled by decode)
+        cfg = get_defaults("rmvpe")
+        cfg["interp_uv"] = interp_uv if interp_uv is not None else cfg["interp_uv"]
+        cfg["median_filter"] = (
+            median_filter if median_filter is not None else cfg["median_filter"]
+        )
+        cfg["threshold"] = None  # decode handles thresholding
+        cfg.update(kwargs)
 
-                f0_np = iuv(f0_np, uv)
-                f0 = paddle.to_tensor(f0_np)
+        f0, confidence = postprocess_f0(f0, confidence, **cfg)
 
         return f0, confidence
 
@@ -278,7 +301,5 @@ class RMVPEPE(BasePE):
     @classmethod
     def default_ckpt(cls) -> str:
         return str(
-            Path(__file__).parent.parent.parent.parent
-            / "ckpts"
-            / "rmvpe.pdparams"
+            Path(__file__).parent.parent.parent.parent / "ckpts" / "rmvpe.pdparams"
         )

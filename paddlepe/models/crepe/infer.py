@@ -203,27 +203,32 @@ class CrepePE(BasePE):
         wav: paddle.Tensor,
         sr: int,
         decoder: str = "weighted_argmax",
-        threshold: float = 0.0,
+        threshold: float | None = None,
         hop_length: int | None = None,
-        interp_uv: bool = False,
+        interp_uv: bool | None = None,
+        median_filter: int | None = None,
         **kwargs,
     ) -> tuple[paddle.Tensor, paddle.Tensor | None]:
         """Infer F0 from audio waveform.
 
-        Pipeline: preprocess -> forward -> decode -> (f0_hz, confidence)
+        Pipeline: preprocess -> forward -> decode -> postprocess
 
         Args:
             wav: (S,) or (1, S) float32 audio
             sr: sample rate in Hz
-            decoder: 'argmax' or 'weighted_argmax'
-            threshold: confidence below this is set to 0 Hz (unvoiced)
+            decoder: ``"argmax"`` or ``"weighted_argmax"``
+            threshold: confidence threshold.  ``None`` = model default (0.5).
             hop_length: frame step in samples (default 10 ms)
-            interp_uv: interpolate unvoiced frames
+            interp_uv: interpolate unvoiced frames.  ``None`` = model default.
+            median_filter: median filter kernel size.  ``None`` = model default.
+            **kwargs: overrides for :func:`postprocess_f0`.
 
         Returns:
             f0_hz: (T,) float32, 0 = unvoiced
             confidence: (T,) float32
         """
+        from paddlepe.postproc.pipeline import get_defaults, postprocess_f0
+
         wav = self._to_tensor(wav)
         wav = wav.squeeze()
         if wav.ndim == 0:
@@ -246,27 +251,28 @@ class CrepePE(BasePE):
             _, f0_hz = _decode_weighted_argmax(logits)
         else:
             raise ValueError(
-                f"Unknown decoder '{decoder}'. "
-                f"Choose from: argmax, weighted_argmax"
+                f"Unknown decoder '{decoder}'. Choose from: argmax, weighted_argmax"
             )
 
         # Confidence = max probability
         confidence = logits.max(axis=1)  # (T,)
 
-        # Apply threshold
-        if threshold > 0.0:
-            mask = confidence < threshold
+        # Apply threshold (crepe internal: sets low-conf frames to 0)
+        _th = threshold if threshold is not None else 0.5
+        if _th > 0.0:
+            mask = confidence < _th
             f0_hz = paddle.where(mask, paddle.zeros_like(f0_hz), f0_hz)
 
-        # Interpolate unvoiced frames
-        if interp_uv:
-            from paddlepe.postproc.filter import interpolate_uv as iuv
+        # Apply post-processing pipeline
+        cfg = get_defaults("crepe")
+        cfg["interp_uv"] = interp_uv if interp_uv is not None else cfg["interp_uv"]
+        cfg["median_filter"] = (
+            median_filter if median_filter is not None else cfg["median_filter"]
+        )
+        cfg["threshold"] = None  # we already applied threshold above
+        cfg.update(kwargs)
 
-            f0_np = f0_hz.numpy()
-            uv = f0_np <= 0
-            if uv.any():
-                f0_np = iuv(f0_np, uv)
-                f0_hz = paddle.to_tensor(f0_np)
+        f0_hz, confidence = postprocess_f0(f0_hz, confidence, **cfg)
 
         return f0_hz, confidence
 
@@ -277,7 +283,5 @@ class CrepePE(BasePE):
     def default_ckpt(cls) -> str:
         """Path to default checkpoint."""
         return str(
-            Path(__file__).parent.parent.parent.parent
-            / "ckpts"
-            / "crepe.pdparams"
+            Path(__file__).parent.parent.parent.parent / "ckpts" / "crepe.pdparams"
         )

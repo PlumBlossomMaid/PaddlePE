@@ -25,11 +25,11 @@ sys.path.insert(0, str(_PROJECT_ROOT))
 _OCEAN_ROOT = _PROJECT_ROOT.parent / "paddleOcean"
 sys.path.insert(0, str(_OCEAN_ROOT))
 
-import ocean
-import paddle
-import yaml
+import ocean  # noqa: E402
+import paddle  # noqa: E402
+import yaml  # noqa: E402
 
-from paddlepe.training import PEDataModule, collators
+from paddlepe.training import PEDataModule, collators  # noqa: E402
 
 # ====================================================================
 # 工具：递归合并字典（target ← source）
@@ -124,10 +124,22 @@ def _build_model(model_name: str, cfg: dict):
     backbone_cls, _, desc = registry[model_name]
 
     losses = {
-        "fcpe": ("bce", lambda p, t: paddle.nn.functional.binary_cross_entropy(p, t)),
-        "rmvpe": ("bce", lambda p, t: paddle.nn.functional.binary_cross_entropy(p, t)),
-        "crepe": ("mse", lambda p, t: paddle.nn.functional.mse_loss(p.squeeze(-1), t)),
-        "penn": ("mse", lambda p, t: paddle.nn.functional.mse_loss(p.squeeze(-1), t)),
+        "fcpe": (
+            "bce",
+            lambda p, t: paddle.nn.functional.binary_cross_entropy(p, t),
+        ),
+        "rmvpe": (
+            "bce",
+            lambda p, t: paddle.nn.functional.binary_cross_entropy(p, t),
+        ),
+        "crepe": (
+            "mse",
+            lambda p, t: paddle.nn.functional.mse_loss(p.squeeze(-1), t),
+        ),
+        "penn": (
+            "mse",
+            lambda p, t: paddle.nn.functional.mse_loss(p.squeeze(-1), t),
+        ),
     }
     loss_name, loss_fn = losses[model_name]
     opt_cfg = cfg.get("optimizer", {})
@@ -223,8 +235,15 @@ def _parse_cli() -> tuple[dict, dict]:
     """
     parser = argparse.ArgumentParser(description="PaddlePE 端到端训练")
     parser.add_argument("--config", type=str, default=None, help="YAML 配置文件路径")
-    parser.add_argument("--model", type=str, default=None, choices=["fcpe", "rmvpe", "crepe", "penn"])
-    parser.add_argument("--datasets", type=str, default=None, help="逗号分隔的数据集列表")
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        choices=["fcpe", "rmvpe", "crepe", "penn"],
+    )
+    parser.add_argument(
+        "--datasets", type=str, default=None, help="逗号分隔的数据集列表"
+    )
     parser.add_argument("--training.epochs", type=int, default=None)
     parser.add_argument("--training.batch_size", type=int, default=None)
     parser.add_argument("--training.device", type=str, default=None)
@@ -312,7 +331,7 @@ def main():
 
     # ── Step 2: 构建模型 + DataModule ──
     print("\n" + "=" * 60)
-    print(f"  Step 2/3: 构建模型 + DataModule")
+    print("  Step 2/3: 构建模型 + DataModule")
     print("=" * 60)
 
     paddle.set_device(train_cfg["device"])

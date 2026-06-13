@@ -8,10 +8,13 @@ Strategies:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import paddle
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def build_sampler(
@@ -32,7 +35,7 @@ def build_sampler(
         Sampler that yields global indices into ``ConcatDataset(datasets)``
     """
     lengths = [len(d) for d in datasets]
-    offsets = np.cumsum([0] + lengths[:-1])
+    offsets = np.cumsum([0, *lengths[:-1]])
     total = sum(lengths)
 
     if strategy == "proportional":
@@ -103,9 +106,7 @@ class _RoundRobinSampler(paddle.io.Sampler):
     def __iter__(self):
         # Per-dataset permutation
         per_ds = [
-            np.random.permutation(n).tolist()
-            if self.shuffle
-            else list(range(n))
+            np.random.permutation(n).tolist() if self.shuffle else list(range(n))
             for n in self.lengths
         ]
         # Interleave

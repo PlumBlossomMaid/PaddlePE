@@ -10,6 +10,19 @@ from paddlepe import PE
 from paddlepe.models.base import BasePE
 
 
+# Register a lightweight test model at module level so tests that need
+# a real model instance (but not a checkpoint) work without ckpt files.
+@PE.register("_test_model")
+class _TestModel(BasePE):
+    trainable = True
+
+    def forward(self, x):
+        return x
+
+    def infer(self, wav, sr, **kwargs):
+        return paddle.zeros([100]), paddle.ones([100])
+
+
 class TestBasePE:
     """Test BasePE interface."""
 
@@ -54,12 +67,12 @@ class TestBasePE:
 
     def test_pe_create_returns_basepe_instance(self):
         """PE.create returns a BasePE instance."""
-        pe = PE.create("fcpe")
+        pe = PE.create("_test_model")
         assert isinstance(pe, BasePE)
 
     def test_device_property(self):
         """BasePE has a device property."""
-        pe = PE.create("fcpe")
+        pe = PE.create("_test_model")
         device = pe.device
         # Should return a valid PaddlePaddle place
         assert isinstance(device, lp.Place)

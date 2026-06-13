@@ -80,13 +80,17 @@ class FCPEPE(BasePE):
         # Librosa-based mel filterbank (matching training config)
         if librosa_mel_fn is not None:
             mel_basis = librosa_mel_fn(
-                sr=sample_rate, n_fft=n_fft, n_mels=mel_bins,
-                fmin=f_min, fmax=f_max,
+                sr=sample_rate,
+                n_fft=n_fft,
+                n_mels=mel_bins,
+                fmin=f_min,
+                fmax=f_max,
             )
         else:
             mel_basis = self._create_mel_filterbank(int(n_fft // 2 + 1), sr=sample_rate)
         self.register_buffer(
-            "_mel_basis", paddle.to_tensor(mel_basis, dtype=paddle.float32),
+            "_mel_basis",
+            paddle.to_tensor(mel_basis, dtype=paddle.float32),
             persistable=True,
         )
 
@@ -122,21 +126,29 @@ class FCPEPE(BasePE):
         if pad_right < wav.shape[-1]:
             wav = paddle.nn.functional.pad(
                 wav.unsqueeze(1),
-                [pad_left, pad_right], mode="reflect", data_format="NCL",
+                [pad_left, pad_right],
+                mode="reflect",
+                data_format="NCL",
             ).squeeze(1)
         else:
             wav = paddle.nn.functional.pad(
                 wav.unsqueeze(1),
-                [pad_left, pad_right], mode="constant", data_format="NCL",
+                [pad_left, pad_right],
+                mode="constant",
+                data_format="NCL",
             ).squeeze(1)
 
         # STFT
         stft = paddle.signal.stft(
-            wav, n_fft=self.n_fft,
-            hop_length=self.hop_length, win_length=self.win_length,
+            wav,
+            n_fft=self.n_fft,
+            hop_length=self.hop_length,
+            win_length=self.win_length,
             window=self._hann_window,
-            center=False, pad_mode="reflect",
-            normalized=False, onesided=True,
+            center=False,
+            pad_mode="reflect",
+            normalized=False,
+            onesided=True,
         )
         mag = paddle.sqrt(stft.real().pow(2) + stft.imag().pow(2) + 1e-9)
 
@@ -160,7 +172,9 @@ class FCPEPE(BasePE):
             idx_left = (freq_bins >= left) & (freq_bins < center)
             filters[i - 1, idx_left] = (freq_bins[idx_left] - left) / (center - left)
             idx_right = (freq_bins >= center) & (freq_bins <= right)
-            filters[i - 1, idx_right] = (right - freq_bins[idx_right]) / (right - center)
+            filters[i - 1, idx_right] = (right - freq_bins[idx_right]) / (
+                right - center
+            )
         return paddle.to_tensor(filters)
 
     def forward(self, mel: paddle.Tensor) -> paddle.Tensor:
@@ -179,8 +193,9 @@ class FCPEPE(BasePE):
         wav: paddle.Tensor,
         sr: int,
         decoder: str = "local_argmax",
-        threshold: float = 0.05,
-        interp_uv: bool = False,
+        threshold: float | None = None,
+        interp_uv: bool | None = None,
+        median_filter: int | None = None,
         **kwargs,
     ) -> tuple[paddle.Tensor, paddle.Tensor | None]:
         """Infer F0 from audio.
@@ -188,13 +203,17 @@ class FCPEPE(BasePE):
         Args:
             wav: (S,) or (1, S) float32 audio
             sr: sample rate
-            decoder: "argmax" or "local_argmax"
-            threshold: UV confidence threshold
-            interp_uv: interpolate unvoiced frames
+            decoder: ``"argmax"`` or ``"local_argmax"``
+            threshold: UV confidence threshold.  ``None`` = model default.
+            interp_uv: interpolate unvoiced frames.  ``None`` = model default.
+            median_filter: median filter kernel size.  ``None`` = model default.
+            **kwargs: overrides for :func:`postprocess_f0`.
 
         Returns:
             (f0_hz, confidence)
         """
+        from paddlepe.postproc.pipeline import get_defaults, postprocess_f0
+
         wav = self._to_tensor(wav)
         if wav.ndim == 1:
             wav = wav.unsqueeze(0)
@@ -203,7 +222,8 @@ class FCPEPE(BasePE):
 
         mel = self._wav_to_mel(wav, sr)  # (B, T, mel_bins)
 
-        f0 = self.backbone.infer(mel, decoder=decoder, threshold=threshold)
+        _th = threshold if threshold is not None else 0.05
+        f0 = self.backbone.infer(mel, decoder=decoder, threshold=_th)
         # Extract confidence
         with paddle.no_grad():
             latent = self.backbone(mel)
@@ -212,14 +232,16 @@ class FCPEPE(BasePE):
         f0 = f0.squeeze(-1).squeeze(0)  # (T,)
         confidence = confidence.squeeze(0)  # (T,)
 
-        if interp_uv:
-            f0_np = f0.numpy()
-            uv = f0_np <= 0
-            if uv.any():
-                from paddlepe.postproc.filter import interpolate_uv as iuv
+        # Apply post-processing pipeline (threshold already handled by backbone)
+        cfg = get_defaults("fcpe")
+        cfg["interp_uv"] = interp_uv if interp_uv is not None else cfg["interp_uv"]
+        cfg["median_filter"] = (
+            median_filter if median_filter is not None else cfg["median_filter"]
+        )
+        cfg["threshold"] = None  # backbone handles thresholding
+        cfg.update(kwargs)
 
-                f0_np = iuv(f0_np, uv)
-                f0 = paddle.to_tensor(f0_np)
+        f0, confidence = postprocess_f0(f0, confidence, **cfg)
 
         return f0, confidence
 
@@ -227,7 +249,5 @@ class FCPEPE(BasePE):
     def default_ckpt(cls) -> str:
         """Path to default checkpoint."""
         return str(
-            Path(__file__).parent.parent.parent.parent
-            / "ckpts"
-            / "fcpe.pdparams"
+            Path(__file__).parent.parent.parent.parent / "ckpts" / "fcpe.pdparams"
         )

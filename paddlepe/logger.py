@@ -54,7 +54,9 @@ def configure_logging(
 _sent_warnings: set[str] = set()
 
 
-def warn_once(message: str, category: type = UserWarning, key: str | None = None) -> None:
+def warn_once(
+    message: str, category: type = UserWarning, key: str | None = None
+) -> None:
     """Emit a warning only once per process (by message or explicit key).
 
     Use for import-time or config-time warnings that should not spam
