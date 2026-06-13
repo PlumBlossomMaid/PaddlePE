@@ -7,7 +7,7 @@ build/
 .pytest_cache/
 
 # PaddlePE
-ckpts/*.pdparams
+ckpts/*_backbone.pdparams
 
 # IDE
 .vscode/
