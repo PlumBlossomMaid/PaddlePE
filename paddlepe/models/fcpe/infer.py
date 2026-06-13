@@ -1,11 +1,11 @@
 """FCPE inference: wav → Mel → model → F0 pipeline.
 
-Uses the same Mel preprocessing as the original FCPE training code
-(librosa.filters.mel + matched STFT padding).
+Uses librosa.filters.mel for mel filterbank (matching training preprocessing).
 """
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -15,9 +15,12 @@ from paddlepe.models.base import BasePE
 from paddlepe.models.fcpe.backbone import MelConformerF0
 from paddlepe.registry import registry
 
+logger = logging.getLogger(__name__)
+
 try:
     from librosa.filters import mel as librosa_mel_fn
 except ImportError:
+    logger.warning("librosa not found; FCPE Mel accuracy may be degraded")
     librosa_mel_fn = None
 
 
@@ -59,7 +62,7 @@ class FCPEPE(BasePE):
         self.f0_min = f0_min
         self.f0_max = f0_max
 
-        # Precompute Hann window for STFT (matched with paddle.audio.functional.get_window)
+        # Hann window matching original FCPE training code
         self._hann_window = paddle.audio.functional.get_window(
             "hann", win_length, fftbins=True, dtype="float32"
         )
@@ -74,22 +77,18 @@ class FCPEPE(BasePE):
             conv_only=conv_only,
         )
 
-        # Precompute librosa-based Mel filterbank (matching training config)
+        # Librosa-based mel filterbank (matching training config)
         if librosa_mel_fn is not None:
             mel_basis = librosa_mel_fn(
-                sr=sample_rate,
-                n_fft=n_fft,
-                n_mels=mel_bins,
-                fmin=f_min,
-                fmax=f_max,
-            )
-            self.register_buffer(
-                "_mel_basis", paddle.to_tensor(mel_basis, dtype=paddle.float32),
-                persistable=True,
+                sr=sample_rate, n_fft=n_fft, n_mels=mel_bins,
+                fmin=f_min, fmax=f_max,
             )
         else:
-            # Fallback: build triangular mel filterbank manually
-            self._mel_basis = self._create_mel_filterbank(int(n_fft // 2 + 1), sr=sample_rate)
+            mel_basis = self._create_mel_filterbank(int(n_fft // 2 + 1), sr=sample_rate)
+        self.register_buffer(
+            "_mel_basis", paddle.to_tensor(mel_basis, dtype=paddle.float32),
+            persistable=True,
+        )
 
     def _wav_to_mel(self, wav: paddle.Tensor, sr: int) -> paddle.Tensor:
         """Convert waveform to Mel spectrogram, matching original FCPE pipeline.
@@ -102,12 +101,11 @@ class FCPEPE(BasePE):
             mel: (1, T, mel_bins) float32
         """
         if wav.ndim == 1:
-            wav = wav.unsqueeze(0)  # (1, S)
-        # Ensure (B, S) — squeeze trailing dim if present
+            wav = wav.unsqueeze(0)
         if wav.ndim > 2:
             wav = wav.squeeze(-1) if wav.shape[-1] == 1 else wav[:, 0]
 
-        # Resample if needed — match original Resample kernel style
+        # Resample if needed
         if sr != self.sample_rate:
             scale = self.sample_rate / sr
             new_len = int(wav.shape[-1] * scale)
@@ -115,59 +113,45 @@ class FCPEPE(BasePE):
                 wav.unsqueeze(0), size=new_len, mode="linear"
             ).squeeze(0)
 
-        # Pad to match original MelExtractor reflect padding:
-        #   pad_left = (win_size - hop_length) // 2
-        #   pad_right determines edge behavior
+        # Pad matching original MelExtractor reflect padding
         pad_left = (self.win_length - self.hop_length) // 2
         pad_right = max(
             (self.win_length - self.hop_length + 1) // 2,
             self.win_length - wav.shape[-1] - pad_left,
         )
-        # Use reflect padding unless right-pad exceeds signal length
         if pad_right < wav.shape[-1]:
             wav = paddle.nn.functional.pad(
                 wav.unsqueeze(1),
-                paddle.to_tensor([pad_left, pad_right], dtype=paddle.int32),
-                mode="reflect",
-                data_format="NCL",
+                [pad_left, pad_right], mode="reflect", data_format="NCL",
             ).squeeze(1)
         else:
             wav = paddle.nn.functional.pad(
                 wav.unsqueeze(1),
-                paddle.to_tensor([pad_left, pad_right], dtype=paddle.int32),
-                mode="constant",
-                data_format="NCL",
+                [pad_left, pad_right], mode="constant", data_format="NCL",
             ).squeeze(1)
 
-        # STFT — matches original: center=False, no normalization
+        # STFT
         stft = paddle.signal.stft(
-            wav,
-            n_fft=self.n_fft,
-            hop_length=self.hop_length,
-            win_length=self.win_length,
+            wav, n_fft=self.n_fft,
+            hop_length=self.hop_length, win_length=self.win_length,
             window=self._hann_window,
-            center=False,
-            pad_mode="reflect",
-            normalized=False,
-            onesided=True,
+            center=False, pad_mode="reflect",
+            normalized=False, onesided=True,
         )
-        mag = paddle.sqrt(
-            stft.real().pow(2) + stft.imag().pow(2) + 1e-9
-        )  # (B, n_fft//2+1, T)
+        mag = paddle.sqrt(stft.real().pow(2) + stft.imag().pow(2) + 1e-9)
 
-        # Mel projection
-        mel = paddle.matmul(self._mel_basis, mag)  # (B, mel_bins, T)
+        # Mel projection via precomputed librosa filterbank
+        mel = paddle.matmul(self._mel_basis, mag)
         mel = paddle.log(paddle.clip(mel, min=1e-5))
         return mel.transpose([0, 2, 1])  # (B, T, mel_bins)
 
     def _create_mel_filterbank(self, n_freq: int, sr: int) -> paddle.Tensor:
-        """Fallback: triangular mel filterbank (when librosa is unavailable)."""
+        """Fallback: triangular mel filterbank when librosa unavailable."""
         low_mel = 2595.0 * np.log10(1.0 + self.f_min / 700.0)
         high_mel = 2595.0 * np.log10(1.0 + self.f_max / 700.0)
         mel_points = np.linspace(low_mel, high_mel, self.mel_bins + 2)
         hz_points = 700.0 * (10.0 ** (mel_points / 2595.0) - 1.0)
         freq_bins = np.linspace(0, sr / 2, n_freq)
-
         filters = np.zeros((self.mel_bins, n_freq), dtype=np.float32)
         for i in range(1, self.mel_bins + 1):
             left = hz_points[i - 1]
@@ -177,7 +161,6 @@ class FCPEPE(BasePE):
             filters[i - 1, idx_left] = (freq_bins[idx_left] - left) / (center - left)
             idx_right = (freq_bins >= center) & (freq_bins <= right)
             filters[i - 1, idx_right] = (right - freq_bins[idx_right]) / (right - center)
-
         return paddle.to_tensor(filters)
 
     def forward(self, mel: paddle.Tensor) -> paddle.Tensor:
