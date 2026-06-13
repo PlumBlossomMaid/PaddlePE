@@ -22,30 +22,32 @@
 import argparse
 import json
 import os
+import struct
+import sys
 import time
 import urllib.request
+from io import BytesIO
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
 
+# 确保 paddlepe 可导入
 _THIS_DIR = Path(__file__).parent
+sys.path.insert(0, str(_THIS_DIR.parent))
+
+from paddlepe.io.formats import HEADER_SIZE, decode_header
 
 
 def wav_to_bytes(wav: np.ndarray, sr: int) -> bytes:
     """Convert float32 audio to WAV bytes."""
-    import struct
-    from io import BytesIO
-
     wav_int16 = (wav * 32767).clip(-32768, 32767).astype(np.int16)
-    n_channels = 1
-    bps = 2
-    data_size = len(wav_int16) * bps
+    data_size = len(wav_int16) * 2
     buf = BytesIO()
     buf.write(b"RIFF")
     buf.write(struct.pack("<I", 36 + data_size))
     buf.write(b"WAVE")
-    buf.write(struct.pack("<IHHIIHH", 16, 1, n_channels, sr, sr * bps, bps, 16))
+    buf.write(struct.pack("<IHHIIHH", 16, 1, 1, sr, sr * 2, 2, 16))
     buf.write(b"data")
     buf.write(struct.pack("<I", data_size))
     buf.write(wav_int16.tobytes())
@@ -54,20 +56,15 @@ def wav_to_bytes(wav: np.ndarray, sr: int) -> bytes:
 
 def parse_f0_bytes(data: bytes) -> tuple[np.ndarray, np.ndarray | None]:
     """Parse .f0 binary response."""
-    from paddlepe.io.formats import HEADER_SIZE, decode_header
-
     header = decode_header(data[:HEADER_SIZE])
-    f0_offset = header.header_size
     f0 = np.frombuffer(
-        data, dtype=np.float32, count=header.num_frames, offset=f0_offset
+        data, dtype=np.float32, count=header.num_frames, offset=header.header_size
     ).copy()
     conf = None
     if header.flags & 0x01:
         conf = np.frombuffer(
-            data,
-            dtype=np.float32,
-            count=header.num_frames,
-            offset=f0_offset + header.num_frames * 4,
+            data, dtype=np.float32, count=header.num_frames,
+            offset=header.header_size + header.num_frames * 4,
         ).copy()
     return f0, conf
 
@@ -92,10 +89,11 @@ def main():
     base_url = f"http://127.0.0.1:{args.port}"
 
     # ── 检查 server 是否在线 ──
+    print(f"[client] 连接 server {base_url} ...")
     try:
         resp = urllib.request.urlopen(f"{base_url}/health", timeout=5)
         info = json.loads(resp.read())
-        print(f"[client] server 在线: {info}")
+        print(f"[client] ✅ server 在线: {info}")
     except Exception as e:
         print(f"[client] ❌ 无法连接 server ({e})")
         print(f"[client] 请先启动: start /B python -m paddlepe.server --model {args.model} --port {args.port}")
@@ -124,8 +122,9 @@ def main():
         f"{base_url}/infer", data=wav_bytes, headers=headers
     )
 
+    print(f"[client] 发送推理请求 ({len(wav_bytes)} bytes)...")
     t0 = time.time()
-    resp = urllib.request.urlopen(req, timeout=120)
+    resp = urllib.request.urlopen(req, timeout=300)
     f0_bytes = resp.read()
     elapsed = time.time() - t0
 
