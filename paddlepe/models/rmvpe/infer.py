@@ -76,7 +76,7 @@ class MelSpectrogram(nn.Layer):
         self.register_buffer(
             "mel_basis",
             paddle.to_tensor(mel_basis, dtype="float32"),
-            persistable=True,
+            persistable=False,
         )
 
         # Hann window

@@ -21,7 +21,9 @@ def _default_ckpt_path(name: str) -> str | None:
         return str(ckpt)
 
     # Not found locally — try downloading from AI Studio
-    print(f"  Model weight {ckpt.name} not found locally. Downloading from AI Studio...")
+    print(
+        f"  Model weight {ckpt.name} not found locally. Downloading from AI Studio..."
+    )
     _download_from_ai_studio(name, ckpt)
     return str(ckpt) if ckpt.exists() else None
 
@@ -94,6 +96,21 @@ class _Registry:
                 else:
                     raise
             model.set_state_dict(state)
+            # Strict validation: check all model keys were loaded
+            loaded_keys = set(state.keys())
+            model_keys = set(model.state_dict().keys())
+            missing = model_keys - loaded_keys
+            unexpected = loaded_keys - model_keys
+            if missing:
+                raise RuntimeError(
+                    f"Checkpoint missing keys (in model but not in checkpoint):\n"
+                    f"  {sorted(missing)}"
+                )
+            if unexpected:
+                raise RuntimeError(
+                    f"Checkpoint has unexpected keys (in checkpoint but not in model):\n"
+                    f"  {sorted(unexpected)}"
+                )
         return model
 
     def list_models(self) -> list[str]:
