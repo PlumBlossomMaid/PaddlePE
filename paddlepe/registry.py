@@ -27,27 +27,27 @@ def _default_ckpt_path(name: str) -> str | None:
 
 
 def _download_from_ai_studio(name: str, dest: Path) -> None:
-    """Download model weight from AI Studio using ``aistudio-sdk``."""
+    """Download model weight from AI Studio using ``ocean.cloud``."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     filename = f"{name}.pdparams"
     try:
-        from aistudio_sdk.snapshot_download import snapshot_download
+        from ocean.cloud import download_file as _dl
+
+        _dl(
+            repo_id=AI_STUDIO_REPO,
+            path_in_repo=filename,
+            local_dir=str(dest.parent),
+            repo_type="model",
+        )
     except ImportError:
         raise RuntimeError(
-            "aistudio-sdk not installed. Install with: pip install aistudio-sdk\n"
+            "ocean not installed. Install with: pip install paddle-ocean\n"
             "Or place the weight file manually at: {dest}"
-        )
-    try:
-        snapshot_download(
-            repo_id=AI_STUDIO_REPO,
-            revision="master",
-            local_dir=str(dest.parent),
-            allow_patterns=[filename],
         )
     except Exception as e:
         raise RuntimeError(
             f"Failed to download {filename} from AI Studio.\n"
-            f"  Set AISTUDIO_ACCESS_TOKEN if the repo is private.\n"
+            f"  Make sure you have logged in: ocean cloud login\n"
             f"  Or place the file manually at: {dest}\n"
             f"  Error: {e}"
         )
