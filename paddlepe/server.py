@@ -19,14 +19,16 @@ from __future__ import annotations
 import argparse
 import io
 import json
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import numpy as np
 
 # Paddle is imported lazily — only inside request handlers
 _MODEL: object | None = None
 _MODEL_NAME: str = ""
-_SERVER: HTTPServer | None = None
+_MODEL_LOCK = threading.Lock()
+_SERVER: ThreadingHTTPServer | None = None
 
 
 def _shutdown_after_delay():
@@ -164,8 +166,10 @@ class _PitchHandler(BaseHTTPRequestHandler):
             duration = len(wav_np) / sr
             _t0 = _time.time()
 
-            wav_t = paddle.to_tensor(wav_np)
-            f0_t, conf_t = _MODEL.infer(wav_t, sr, **params)
+            # Thread-safe inference
+            with _MODEL_LOCK:
+                wav_t = paddle.to_tensor(wav_np)
+                f0_t, conf_t = _MODEL.infer(wav_t, sr, **params)
             f0_np = f0_t.numpy()
             conf_np = conf_t.numpy() if conf_t is not None else None
 
@@ -221,7 +225,7 @@ def run_server(
     if model is not None:
         _load_model(model, ckpt)
 
-    _SERVER = HTTPServer(("127.0.0.1", port), _PitchHandler)
+    _SERVER = ThreadingHTTPServer(("127.0.0.1", port), _PitchHandler)
     model_info = f"model={model}" if model else "no-preload mode"
     print(f"[paddlePE server] listening on http://127.0.0.1:{port} ({model_info})")
     print(
