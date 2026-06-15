@@ -17,6 +17,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import os
 from typing import TYPE_CHECKING
 
 from paddlepe.registry import registry
@@ -64,11 +65,9 @@ class PE:
                 kw in err_str
                 for kw in ["cuda", "gpu", "out of memory", "cublas", "driver"]
             ):
-                logger.warning(
-                    "Direct PE creation failed (%s). "
-                    "Falling back to subprocess server to avoid CUDA conflict.",
-                    e,
-                )
+                # rank-zero-only: avoid spam from forked DataLoader workers
+                if os.environ.get("LOCAL_RANK", "0") == "0":
+                    logger.warning("CUDA unavailable, entering server mode")
                 return _create_remote(name, ckpt)
             # Re-raise non-CUDA errors
             raise
