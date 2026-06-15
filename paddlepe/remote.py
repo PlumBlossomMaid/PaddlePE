@@ -81,13 +81,12 @@ class RemotePE:
 
         if url:
             self._base_url = url.rstrip("/")
+            # Connecting to existing server — model already loaded
         else:
             port = port or _find_free_port()
             self._base_url = f"http://127.0.0.1:{port}"
             self._start_server(port)
-
-        # Load model on server
-        self._load_model()
+            self._load_model()
 
     def _start_server(self, port: int):
         """Start paddlePE server as a subprocess."""
