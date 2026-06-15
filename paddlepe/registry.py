@@ -14,7 +14,7 @@ def _default_ckpt_path(name: str) -> str | None:
     """Resolve default checkpoint path for a model.
 
     Checks local ``ckpts/{name}.pdparams`` first. If not found,
-    attempts to download from AI Studio via ``aistudio-sdk``.
+    attempts to download from AI Studio via ``ocean.cloud.download_file``.
     """
     ckpt = Path(__file__).parent.parent / "ckpts" / f"{name}.pdparams"
     if ckpt.exists():
@@ -29,6 +29,9 @@ def _default_ckpt_path(name: str) -> str | None:
 def _download_from_ai_studio(name: str, dest: Path) -> None:
     """Download model weight from AI Studio using ``ocean.cloud``."""
     dest.parent.mkdir(parents=True, exist_ok=True)
+    # Remove corrupt/stale file before download
+    if dest.exists():
+        dest.unlink()
     filename = f"{name}.pdparams"
     try:
         from ocean.cloud import download_file as _dl
@@ -79,7 +82,17 @@ class _Registry:
         model = self._models[name](**kwargs)
         resolved = ckpt or _default_ckpt_path(name)
         if resolved:
-            state = paddle.load(resolved)
+            try:
+                state = paddle.load(resolved)
+            except Exception:
+                # Corrupted file — delete and retry download
+                print(f"  Corrupted weight {resolved}, re-downloading...")
+                Path(resolved).unlink(missing_ok=True)
+                resolved = _default_ckpt_path(name)
+                if resolved:
+                    state = paddle.load(resolved)
+                else:
+                    raise
             model.set_state_dict(state)
         return model
 
