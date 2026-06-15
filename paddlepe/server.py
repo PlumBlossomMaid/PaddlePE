@@ -166,10 +166,8 @@ class _PitchHandler(BaseHTTPRequestHandler):
             duration = len(wav_np) / sr
             _t0 = _time.time()
 
-            # Thread-safe inference
-            with _MODEL_LOCK:
-                wav_t = paddle.to_tensor(wav_np)
-                f0_t, conf_t = _MODEL.infer(wav_t, sr, **params)
+            wav_t = paddle.to_tensor(wav_np)
+            f0_t, conf_t = _MODEL.infer(wav_t, sr, **params)
             f0_np = f0_t.numpy()
             conf_np = conf_t.numpy() if conf_t is not None else None
 
