@@ -20,6 +20,7 @@ dev = [
     "pytest-timeout>=2.0",
     "ruff>=0.15.0",
     "pre-commit>=3.0",
+    "paddle-ocean @ https://github.com/PlumBlossomMaid/paddleOcean/archive/master.zip",
 ]
 all = [
     "parselmouth>=0.4",

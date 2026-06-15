@@ -21,7 +21,9 @@ def _default_ckpt_path(name: str) -> str | None:
         return str(ckpt)
 
     # Not found locally — try downloading from AI Studio
-    print(f"  Model weight {ckpt.name} not found locally. Downloading from AI Studio...")
+    print(
+        f"  Model weight {ckpt.name} not found locally. Downloading from AI Studio..."
+    )
     try:
         _download_from_ai_studio(name, ckpt)
     except (ImportError, RuntimeError):
@@ -48,7 +50,7 @@ def _download_from_ai_studio(name: str, dest: Path) -> None:
     except ImportError:
         raise RuntimeError(
             "ocean not installed. Install with: pip install paddle-ocean\n"
-            "f"Or place the weight file manually at: {dest}""
+            f"Or place the weight file manually at: {dest}"
         )
     except Exception as e:
         raise RuntimeError(
