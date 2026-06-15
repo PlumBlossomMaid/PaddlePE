@@ -108,7 +108,7 @@ class RemotePE:
         # On Windows, subprocess.Popen can hang when PaddlePaddle is
         # loaded in the parent process. Use start /B via cmd.exe as
         # a workaround when Paddle is present.
-        if "paddle" in sys.modules:
+        if "paddle" in sys.modules and sys.platform == "win32":
             self._process = None
             shell_cmd = (
                 f'start /B {sys.executable} -m paddlepe.server '
