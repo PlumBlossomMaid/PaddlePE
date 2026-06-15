@@ -14,17 +14,18 @@ def _default_ckpt_path(name: str) -> str | None:
     """Resolve default checkpoint path for a model.
 
     Checks local ``ckpts/{name}.pdparams`` first. If not found,
-    attempts to download from AI Studio via ``ocean.cloud.download_file``.
+    attempts to download from AI Studio. Returns None if unavailable.
     """
     ckpt = Path(__file__).parent.parent / "ckpts" / f"{name}.pdparams"
     if ckpt.exists():
         return str(ckpt)
 
     # Not found locally — try downloading from AI Studio
-    print(
-        f"  Model weight {ckpt.name} not found locally. Downloading from AI Studio..."
-    )
-    _download_from_ai_studio(name, ckpt)
+    print(f"  Model weight {ckpt.name} not found locally. Downloading from AI Studio...")
+    try:
+        _download_from_ai_studio(name, ckpt)
+    except (ImportError, RuntimeError):
+        pass
     return str(ckpt) if ckpt.exists() else None
 
 
@@ -47,7 +48,7 @@ def _download_from_ai_studio(name: str, dest: Path) -> None:
     except ImportError:
         raise RuntimeError(
             "ocean not installed. Install with: pip install paddle-ocean\n"
-            "Or place the weight file manually at: {dest}"
+            "f"Or place the weight file manually at: {dest}""
         )
     except Exception as e:
         raise RuntimeError(
