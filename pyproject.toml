@@ -12,6 +12,7 @@ license = { text = "MIT" }
 dependencies = [
     "numpy>=1.24",
     "einops",
+    "aistudio-sdk>=0.1.0",
 ]
 
 [project.optional-dependencies]
