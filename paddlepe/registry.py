@@ -108,7 +108,7 @@ class _Registry:
                 )
             if unexpected:
                 raise RuntimeError(
-                    f"Checkpoint has unexpected keys (in checkpoint but not in model):\n"
+                    f"Checkpoint has unexpected keys (not in model):\n"
                     f"  {sorted(unexpected)}"
                 )
         return model
