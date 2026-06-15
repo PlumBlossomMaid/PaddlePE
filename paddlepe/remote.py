@@ -136,6 +136,7 @@ class RemotePE:
 
     def _load_model(self):
         """Load model on server."""
+        import urllib.error
         import urllib.request
 
         data = json.dumps({"model": self._model_name, "ckpt": self._ckpt}).encode()
@@ -144,7 +145,10 @@ class RemotePE:
             data=data,
             headers={"Content-Type": "application/json"},
         )
-        resp = urllib.request.urlopen(req)
+        try:
+            resp = urllib.request.urlopen(req)
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"Failed to load model on server: HTTP {e.code}") from e
         result = json.loads(resp.read())
         if resp.status != 200:
             raise RuntimeError(
@@ -207,7 +211,10 @@ class RemotePE:
             data=wav_bytes,
             headers=headers,
         )
-        resp = urllib.request.urlopen(req)
+        try:
+            resp = urllib.request.urlopen(req)
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"PE server inference failed: HTTP {e.code}") from e
         f0_bytes = resp.read()
 
         # Parse .f0 response
