@@ -19,7 +19,6 @@ from __future__ import annotations
 import argparse
 import io
 import json
-import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import numpy as np
@@ -27,7 +26,6 @@ import numpy as np
 # Paddle is imported lazily — only inside request handlers
 _MODEL: object | None = None
 _MODEL_NAME: str = ""
-_MODEL_LOCK = threading.Lock()
 _SERVER: ThreadingHTTPServer | None = None
 
 
