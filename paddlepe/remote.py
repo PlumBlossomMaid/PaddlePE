@@ -88,6 +88,11 @@ class RemotePE:
             self._start_server(port)
             self._load_model()
 
+        # atexit ensures cleanup on normal interpreter exit
+        import atexit
+
+        atexit.register(self.shutdown)
+
     def _start_server(self, port: int):
         """Start paddlePE server as a subprocess."""
         cmd = [
@@ -268,26 +273,22 @@ class RemotePE:
         buf.write(samples.tobytes())
         return buf.getvalue()
 
-    def __del__(self):
-        """Shutdown server on cleanup."""
+    def shutdown(self) -> None:
+        """Shutdown the server. Idempotent — safe to call multiple times."""
         if not self._auto_shutdown:
             return
-        # Preferred: graceful HTTP shutdown
         try:
             import urllib.request as _ur
 
-            _ur.urlopen(
-                f"{self._base_url}/shutdown",
-                data=b"{}",
-                timeout=3,
-            )
-            return
+            _ur.urlopen(f"{self._base_url}/shutdown", data=b"{}", timeout=3)
         except Exception:
             pass
-        # Fallback: kill process directly
-        try:
-            if self._process is not None:
-                self._process.terminate()
+        if self._process is not None:
+            try:
+                self._process.kill()
                 self._process.wait(timeout=3)
-        except Exception:
-            pass
+            except Exception:
+                pass
+
+    def __del__(self):
+        self.shutdown()
