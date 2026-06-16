@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import numpy as np
@@ -200,6 +201,7 @@ def run_server(
     port: int = 18560,
     ckpt: str | None = None,
     no_preload: bool = False,
+    ppid: int | None = None,
 ):
     """Start the inference server.
 
@@ -213,6 +215,7 @@ def run_server(
         no_preload: If True, start server without loading any model.
             Client must call /load before /infer. Useful for listing
             models without loading an actual model.
+        ppid: Parent PID to watch. Server auto-exits if parent dies.
     """
     global _SERVER
 
@@ -220,6 +223,24 @@ def run_server(
         model = None
     if model is not None:
         _load_model(model, ckpt)
+
+    # Parent process watchdog — exit if parent dies
+    if ppid is not None:
+
+        def _watch_parent():
+            while True:
+                try:
+                    os.kill(ppid, 0)
+                except OSError:
+                    # Parent died — shut down
+                    _SERVER.shutdown()
+                    break
+                threading.Event().wait(5.0)
+
+        import threading
+
+        t = threading.Thread(target=_watch_parent, daemon=True)
+        t.start()
 
     _SERVER = ThreadingHTTPServer(("127.0.0.1", port), _PitchHandler)
     model_info = f"model={model}" if model else "no-preload mode"
@@ -237,12 +258,17 @@ def main():
     parser.add_argument("--port", type=int, default=18560, help="Server port")
     parser.add_argument("--ckpt", default=None, help="Checkpoint path")
     parser.add_argument(
+        "--ppid", type=int, default=None, help="Parent PID (auto-exit if parent dies)"
+    )
+    parser.add_argument(
         "--no-preload",
         action="store_true",
         help="Start without preloading a model. Use /load later.",
     )
     args = parser.parse_args()
-    run_server(args.model, args.port, args.ckpt, no_preload=args.no_preload)
+    run_server(
+        args.model, args.port, args.ckpt, no_preload=args.no_preload, ppid=args.ppid
+    )
 
 
 if __name__ == "__main__":

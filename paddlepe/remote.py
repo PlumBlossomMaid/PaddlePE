@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import socket
 import subprocess  # noqa: TC003
 import sys
@@ -103,6 +104,8 @@ class RemotePE:
             self._model_name,
             "--port",
             str(port),
+            "--ppid",
+            str(os.getpid()),
         ]
         if self._ckpt:
             cmd += ["--ckpt", self._ckpt]
